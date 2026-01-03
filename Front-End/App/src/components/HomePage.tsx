@@ -224,10 +224,11 @@ export default function HomePage() {
                 height="100%"
                 frameBorder="0"
                 style={{ border: 0 }}
-                src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${encodeURIComponent(
-                  selectedPartner?.address || partners[0].address
-                )}&zoom=15`}
-                allowFullScreen
+                src={`https://www.google.com/maps/embed/v1/place?key=${
+                  import.meta.env.VITE_GOOGLE_MAPS_KEY}&q=${encodeURIComponent(
+                    selectedPartner?.address || partners[0].address
+                  )}&zoom=15`}
+                  allowFullScreen
               />
             </div>
             {selectedPartner && (
