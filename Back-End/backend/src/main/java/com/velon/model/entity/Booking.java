@@ -1,4 +1,5 @@
 package com.velon.model.entity;
+
 import javax.persistence.*;
 import java.time.LocalDate;
 
@@ -7,26 +8,47 @@ import java.time.LocalDate;
 public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Integer id; 
 
-    @Column(name="car_id")
+    @Column(name = "user_id", nullable = false)
+    private Integer userId;
+
+    @Column(name = "car_id", nullable = false)
     private Integer carId;
 
-    @Column(name="start_date")
+    @Column(name = "start_date", nullable = false)
     private LocalDate startDate;
 
-    @Column(name="end_date")
+    @Column(name = "end_date", nullable = false)
     private LocalDate endDate;
 
-    private String status; // Confirmed  or cancelled
+    @Column(name = "total_price", nullable = false)
+    private Double totalPrice;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private BookingStatus status;
+
+    @Column(name = "payment_token")
+
+    private String paymentToken;
 
     // Getters and Setters
+
     public Integer getId() {
-        return id; 
+        return id;
     }
 
     public void setId(Integer id) {
         this.id = id;
+    }
+
+    public Integer getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
     }
 
     public Integer getCarId() {
@@ -34,7 +56,7 @@ public class Booking {
     }
 
     public void setCarId(Integer carId) {
-        this.carId = carId; 
+        this.carId = carId;
     }
 
     public LocalDate getStartDate() {
@@ -42,7 +64,7 @@ public class Booking {
     }
 
     public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate; 
+        this.startDate = startDate;
     }
 
     public LocalDate getEndDate() {
@@ -50,15 +72,28 @@ public class Booking {
     }
 
     public void setEndDate(LocalDate endDate) {
-        this.endDate = endDate; 
+        this.endDate = endDate;
     }
 
-    public String getStatus() {
+    public Double getTotalPrice() {
+        return totalPrice;
+    }
+
+    public void setTotalPrice(Double totalPrice) {
+        this.totalPrice = totalPrice;
+    }
+
+    public BookingStatus getStatus() {
         return status;
     }
-
-    public void setStatus(String status) {
-        this.status = status; 
+    public void setStatus(BookingStatus status) {
+        this.status = status;
     }
 
+    public String getPaymentToken() {
+        return paymentToken;
+    }
+    public void setPaymentToken(String paymentToken) {
+        this.paymentToken = paymentToken;
+    }
 }

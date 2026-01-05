@@ -6,8 +6,6 @@ import com.velon.dao.CarDAO;
 import com.velon.model.entity.Car;
 import com.velon.service.CarAvailability;
 
-import lombok.var;
-
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,7 +37,7 @@ public class CarSearchController extends BaseController {
 
     @GetMapping
     public Object getAllCars() {
-        var allCars = carDAO.findAll();
+        List<Car> allCars = carDAO.findAll();
         return ok(allCars);
     }
 
@@ -54,8 +52,8 @@ public class CarSearchController extends BaseController {
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
     ) {
-        var allCars = carDAO.findAll();
-        var bookingsInRange = bookingDAO.findConfirmedBookingInRange(startDate, endDate);
+        List<Car> allCars = carDAO.findAll();
+        List<com.velon.model.entity.Booking> bookingsInRange = bookingDAO.findConfirmedBookingInRange(startDate, endDate);
 
         List<Car> available = allCars.stream()
             .filter(car -> carAvailability.isAvailable(car, bookingsInRange))
