@@ -39,6 +39,11 @@ public class PaymentService {
         transaction.setPaymentMethod(paymentMethod);
         transaction.setStatus("PAID");
         transaction.setCreatedAt(LocalDateTime.now());
+
         transactionDAO.save(transaction);
+        
     }
+
+
+
 }
