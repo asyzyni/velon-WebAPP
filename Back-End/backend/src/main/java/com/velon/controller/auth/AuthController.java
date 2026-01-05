@@ -3,6 +3,8 @@ package com.velon.controller.auth;
 import org.springframework.web.bind.annotation.*;
 import com.velon.dao.UserDAO;
 import com.velon.model.entity.User;
+import com.velon.model.dto.LoginRequest;
+import com.velon.model.dto.RegisterRequest;
 
 @RestController
 @RequestMapping("/auth")
@@ -11,17 +13,13 @@ public class AuthController {
 
     @GetMapping
     public String authInfo() {
-        return "Auth API - Use POST /auth/register or POST /auth/login with form data";
+        return "Auth API - Use POST /auth/register or POST /auth/login with JSON body";
     }
 
-    // Register
+    // Register - Now accepts JSON
     @PostMapping("/register")
-    public String register(
-        @RequestParam String name,
-        @RequestParam String email,
-        @RequestParam String password
-    ) {
-        User user = new User(name, email, password);
+    public String register(@RequestBody RegisterRequest request) {
+        User user = new User(request.getName(), request.getEmail(), request.getPassword());
         boolean success = userDAO.register(user);
 
         if (success) {
@@ -31,19 +29,16 @@ public class AuthController {
         }
     }
 
-    // Login
+    // Login - Now accepts JSON
     @PostMapping("/login")
-    public String login(
-        @RequestParam String email, 
-        @RequestParam String password
-    ) {
-        User user = userDAO.findbyEmail(email, password);
-        
+    public String login(@RequestBody LoginRequest request) {
+        User user = userDAO.findbyEmail(request.getEmail(), request.getPassword());
+
         if (user == null) {
             return "Email tidak ditemukan";
         }
 
-        if (!user.getPassword().equals(password)) {
+        if (!user.getPassword().equals(request.getPassword())) {
             return "Password salah";
         }
 

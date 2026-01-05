@@ -8,8 +8,8 @@ import java.sql.ResultSet;
 
 
 public class UserDAO {
-    private static final String DB_URL = "jdbc:mysql://localhost:3306/velon_db";
-    private static final String DB_USER = "root";
+    private static final String DB_URL = "jdbc:postgresql://localhost:5432/velon_db";
+    private static final String DB_USER = "asyzyni";
     private static final String DB_PASSWORD = "Tan45is1!";
 
     // get connection method and other DAO methods would go here

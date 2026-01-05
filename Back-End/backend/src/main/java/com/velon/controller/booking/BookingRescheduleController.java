@@ -16,27 +16,47 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/bookings/reschedule")
-public class BookingRescheduleController extends BaseController {
+@RequestMapping("/bookings")
+public class BookingRescheduleController extends BaseController
+        implements BookingOperation {
+
     private final BookingDAO bookingDAO;
     private final BookingService bookingService;
-    private final CarAvailability carAvailability;
 
-    public BookingRescheduleController(BookingDAO bookingDAO, BookingService bookingService, CarAvailability carAvailability) {
+    public BookingRescheduleController(BookingDAO bookingDAO, BookingService bookingService) {
         this.bookingDAO = bookingDAO;
         this.bookingService = bookingService;
-        this.carAvailability = carAvailability;
-        
     }
 
-    @PutMapping("/{id}")
-    public Booking rescheduleBooking(@PathVariable Integer id, @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newStart,
-                                     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate newEnd) {
-        Booking booking = bookingDAO.findById(id).orElseThrow(() -> new RuntimeException("Booking not found"));
+    @Override
+    @PutMapping("/reschedule/{id}")
+    public Booking reschedule(
+            @PathVariable Integer id,
+            @RequestBody Object request
+    ) {
 
-        // reschedule (H-3)
-        bookingService.rescheduleBooking(booking, newStart, newEnd);
+        Booking req = (Booking) request;
+
+        Booking booking = bookingDAO.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+
+        bookingService.validateHMinus3(booking.getStartDate());
+        bookingService.validateDate(req.getStartDate(), req.getEndDate());
+
+        booking.setStartDate(req.getStartDate());
+        booking.setEndDate(req.getEndDate());
 
         return bookingDAO.save(booking);
+    }
+
+    // unused
+    @Override
+    public Object create(Object req) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Object cancel(Integer id) {
+        throw new UnsupportedOperationException();
     }
 }

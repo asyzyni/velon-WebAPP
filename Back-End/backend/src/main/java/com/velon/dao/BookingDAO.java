@@ -13,10 +13,13 @@ import java.util.List;
 public interface BookingDAO extends JpaRepository<Booking, Integer> {
     List<Booking> findByUserId(Integer userId);
 
-    @Query("SELECT b FROM Booking b WHERE b.status = 'CONFIRMED' AND " +
+    @Query("SELECT b FROM Booking b WHERE b.status = com.velon.model.entity.BookingStatus.CONFIRMED AND " +
            "((b.startDate <= :endDate AND b.endDate >= :startDate))")
     List<Booking> findConfirmedBookingInRange(
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
     );
+
+    @Query("SELECT b FROM Booking b WHERE b.userId = :userId ORDER BY b.startDate DESC")
+    List<Booking> findByUserIdOrderByStartDateDesc(@Param("userId") Integer userId);
 }
