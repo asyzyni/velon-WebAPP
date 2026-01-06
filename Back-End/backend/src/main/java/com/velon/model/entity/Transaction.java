@@ -35,7 +35,7 @@ public class Transaction {
     public void setId(Integer id) { 
         this.id = id; 
     }
-    
+
     public Integer getBookingId() { 
         return bookingId; 
     }
@@ -71,7 +71,7 @@ public class Transaction {
 
     public Boolean getVerified() { 
         return verified; 
-    }
+    }    
     public void setVerified(Boolean verified) { 
         this.verified = verified; 
     }

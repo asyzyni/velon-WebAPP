@@ -45,7 +45,7 @@ public class UserDAO {
     // =====================
     // FIND BY EMAIL
     // =====================
-    public User findByEmail(String email, String password) {
+    public User findByEmail(String email) {
         String sql = "SELECT * FROM users WHERE email = ?";
 
         try (Connection conn = getConnection();

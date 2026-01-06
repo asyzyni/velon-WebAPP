@@ -3,11 +3,9 @@ package com.velon.service;
 import com.velon.dao.BookingDAO;
 import com.velon.dao.TransactionDAO;
 import com.velon.model.entity.Booking;
-import com.velon.model.entity.Transaction;
 import com.velon.model.entity.BookingStatus;
+import com.velon.model.entity.Transaction;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 
 @Service
 public class PaymentService {
@@ -20,8 +18,11 @@ public class PaymentService {
         this.transactionDAO = transactionDAO;
     }
 
-    public void processPayment(Integer bookingId, String paymentMethod) {
-
+    public Transaction submitPayment(
+            Integer bookingId,
+            String paymentMethod,
+            String paymentProof
+    ) {
         Booking booking = bookingDAO.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
@@ -29,21 +30,35 @@ public class PaymentService {
             throw new RuntimeException("Booking not waiting payment");
         }
 
-        // update booking
-        booking.setStatus(BookingStatus.CONFIRMED);
-        bookingDAO.save(booking);
+        Transaction transaction = transactionDAO.findByBookingId(bookingId);
+        if (transaction == null) {
+            transaction = new Transaction();
+            transaction.setBookingId(bookingId);
+        }
 
-        // save transaction
-        Transaction transaction = new Transaction();
-        transaction.setBookingId(bookingId);
         transaction.setPaymentMethod(paymentMethod);
-        transaction.setStatus("PAID");
-        transaction.setCreatedAt(LocalDateTime.now());
+        transaction.setPaymentProof(paymentProof);
+        transaction.setVerified(false);
 
-        transactionDAO.insert(transaction);
-        
+        // ✅ JPA SAVE (BUKAN UPDATE)
+        return transactionDAO.save(transaction);
     }
 
+    public void verifyPayment(Integer bookingId) {
+        Transaction transaction = transactionDAO.findByBookingId(bookingId);
+        if (transaction == null) {
+            throw new RuntimeException("Transaction not found");
+        }
 
+        transaction.setVerified(true);
+        
 
+        // ✅ JPA SAVE (BUKAN UPDATE)
+        transactionDAO.save(transaction);
+
+        Booking booking = bookingDAO.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        booking.setStatus(BookingStatus.CONFIRMED);
+        bookingDAO.save(booking);
+    }
 }

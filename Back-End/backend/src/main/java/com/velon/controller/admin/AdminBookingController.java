@@ -99,7 +99,7 @@ public class AdminBookingController {
 
         transaction.setStatus("PAID");
         transaction.setVerified(true);
-        transactionDAO.update(transaction);
+        transactionDAO.save(transaction);
 
         return booking;
     }

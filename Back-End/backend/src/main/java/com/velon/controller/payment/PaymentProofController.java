@@ -47,7 +47,7 @@ public class PaymentProofController {
 
             trx.setPaymentProof(filename);
             trx.setVerified(false);
-            transactionDAO.update(trx);
+            transactionDAO.save(trx);
 
             return ResponseEntity.ok("UPLOAD OK");
 
