@@ -1,26 +1,14 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'admin' | 'user';
-}
+import { loginApi, registerApi} from '../api/authApi';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  register: (name: string, email: string, password: string) => boolean;
+  register: (name: string, email: string, password: string) => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Mock users database
-const mockUsers = [
-  { id: '1', name: 'Admin', email: 'admin@velon.com', password: 'admin123', role: 'admin' as const },
-  { id: '2', name: 'John Doe', email: 'user@velon.com', password: 'user123', role: 'user' as const },
-];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -32,15 +20,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (email: string, password: string): boolean => {
-    const foundUser = mockUsers.find(u => u.email === email && u.password === password);
-    if (foundUser) {
-      const { password: _, ...userWithoutPassword } = foundUser;
-      setUser(userWithoutPassword);
-      localStorage.setItem('velon_user', JSON.stringify(userWithoutPassword));
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const userData = await loginApi(email, password);
+      const userWithStringRole: User = {
+        ...userData,
+        role: userData.role?.toLowerCase() || 'user',
+      };
+      setUser(userWithStringRole);
+      localStorage.setItem('velon_user', JSON.stringify(userWithStringRole));
       return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
@@ -48,19 +41,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('velon_user');
   };
 
-  const register = (name: string, email: string, password: string): boolean => {
-    const exists = mockUsers.find(u => u.email === email);
-    if (exists) return false;
-    
-    const newUser = {
-      id: String(mockUsers.length + 1),
-      name,
-      email,
-      password,
-      role: 'user' as const
-    };
-    mockUsers.push(newUser);
-    return true;
+  const register = async (name: string, email: string, password: string): Promise<boolean> => {
+    try {
+      await registerApi(name, email, password);
+      return true;
+    } catch (error) {
+      console.error('Register error:', error);
+      return false;
+    }
   };
 
   return (

@@ -2,12 +2,13 @@ package com.velon.controller.auth;
 
 import com.velon.dao.UserDAO;
 import com.velon.model.entity.User;
+import com.velon.controller.base.BaseController;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
-public class AuthController {
+public class AuthController extends BaseController {
 
     private final UserDAO userDAO;
 

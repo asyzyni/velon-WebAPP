@@ -5,7 +5,17 @@ export const getAllBookings = async () => {
     return res.data;
 };
 
-// updtate booking status
-export const updateBookingStatusApi = async (id:number, status:string) => {
-    await api.put(`/admin/bookings/${id}/status`, { status });
+export const approveBooking = async (bookingId: string) => {
+    const res =  await api.put(`/admin/bookings/${bookingId}/approve`);
+    return res.data;
 };
+
+export const cancelBooking = async (bookingId: string) => {
+    const res = await api.put(`/admin/bookings/${bookingId}/cancel`);
+    return res.data;
+};
+
+export const markBookingAsCompleted = async (bookingId: string) => {
+    const res = await api.put(`/admin/bookings/${bookingId}/complete`);
+    return res.data;
+}

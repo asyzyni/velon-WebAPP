@@ -1,4 +1,5 @@
 package com.velon.controller.admin;
+
 import com.velon.dao.BookingDAO;
 import com.velon.dao.CarDAO;
 import com.velon.dao.TransactionDAO;
@@ -15,6 +16,9 @@ import java.util.Map;
 
 import javax.annotation.PostConstruct;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/admin/bookings")
 public class AdminBookingController {
@@ -24,7 +28,8 @@ public class AdminBookingController {
     private final ObjectMapper objectMapper;
     private final TransactionDAO transactionDAO;
 
-    public AdminBookingController(BookingDAO bookingDAO, CarDAO carDAO, BookingService bookingService, ObjectMapper objectMapper, TransactionDAO transactionDAO) {
+    public AdminBookingController(BookingDAO bookingDAO, CarDAO carDAO, BookingService bookingService,
+            ObjectMapper objectMapper, TransactionDAO transactionDAO) {
         this.bookingDAO = bookingDAO;
         this.carDAO = carDAO;
         this.bookingService = bookingService;
@@ -58,16 +63,14 @@ public class AdminBookingController {
 
         bookingService.validateDate(
                 booking.getStartDate(),
-                booking.getEndDate()
-        );
+                booking.getEndDate());
         bookingService.validateBooking(booking.getStartDate());
 
         // Calculate total price
         int totalPrice = bookingService.calculateTotalPrice(
                 booking.getStartDate(),
                 booking.getEndDate(),
-                car.getHargaPerHari()
-        );
+                car.getHargaPerHari());
         booking.setTotalPrice(totalPrice);
 
         booking.setStatus(BookingStatus.WAITING_PAYMENT);
@@ -102,6 +105,33 @@ public class AdminBookingController {
         transactionDAO.save(transaction);
 
         return booking;
+    }
+
+    // approve booking
+    @PutMapping("/{id}/approve")
+    public Booking approveBooking(@PathVariable Integer id) {
+        Booking booking = bookingDAO.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        booking.setStatus(BookingStatus.CONFIRMED);
+        return bookingDAO.save(booking);
+    }
+
+    // cancel booking
+    @PutMapping("/{id}/cancel")
+    public Booking cancelBooking(@PathVariable Integer id) {
+        Booking booking = bookingDAO.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        booking.setStatus(BookingStatus.CANCELLED);
+        return bookingDAO.save(booking);
+    }
+
+    // mark booking as completed
+    @PutMapping("/{id}/complete")
+    public Booking completeBooking(@PathVariable Integer id) {
+        Booking booking = bookingDAO.findById(id)
+                .orElseThrow(() -> new RuntimeException("Booking not found"));
+        booking.setStatus(BookingStatus.COMPLETED);
+        return bookingDAO.save(booking);
     }
 
 }

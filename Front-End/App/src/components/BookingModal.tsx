@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Calendar, MapPin, Clock } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import { createBooking } from '../api/bookingApi';
 
 interface Car {
   id: string;
@@ -33,33 +34,50 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
   const totalDays = calculateDays();
   const totalPrice = totalDays * car.pricePerDay;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const booking = {
-      id: `BK${Date.now()}`,
-      userId: user?.id,
-      carId: car.id,
-      carName: car.name,
-      carImage: car.image,
+
+    const bookingPayload = {
+      userId: user?.id ? Number(user.id) : null,
+      carId: Number(car.id),
       startDate,
       endDate,
       pickupLocation,
       notes,
-      totalDays,
-      pricePerDay: car.pricePerDay,
       totalPrice,
-      status: 'pending',
-      paymentStatus: 'unpaid',
-      createdAt: new Date().toISOString(),
     };
 
-    // Save to localStorage
-    const existingBookings = JSON.parse(localStorage.getItem('velon_bookings') || '[]');
-    localStorage.setItem('velon_bookings', JSON.stringify([...existingBookings, booking]));
+    try {
+      // Call backend API
+      const result = await createBooking(bookingPayload);
 
-    alert('Pemesanan berhasil! Silakan lakukan pembayaran.');
-    onClose();
+      // Also save to localStorage for history display
+      const localBooking = {
+        id: result.id || `BK${Date.now()}`,
+        userId: user?.id,
+        carId: car.id,
+        carName: car.name,
+        carImage: car.image,
+        startDate,
+        endDate,
+        pickupLocation,
+        notes,
+        totalDays,
+        pricePerDay: car.pricePerDay,
+        totalPrice,
+        status: 'pending',
+        paymentStatus: 'unpaid',
+        createdAt: new Date().toISOString(),
+      };
+      const existingBookings = JSON.parse(localStorage.getItem('velon_bookings') || '[]');
+      localStorage.setItem('velon_bookings', JSON.stringify([...existingBookings, localBooking]));
+
+      alert('Pemesanan berhasil! Silakan lakukan pembayaran.');
+      onClose();
+    } catch (error) {
+      console.error('Booking error:', error);
+      alert('Gagal membuat pemesanan. Silakan coba lagi.');
+    }
   };
 
   return (

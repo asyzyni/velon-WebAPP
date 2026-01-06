@@ -57,24 +57,25 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
     };
     loadBookings();
   }, [bookingId]);
-  
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!proofFile) {
       alert('Silakan upload bukti pembayaran.');
       return;
     }
 
-    const method = paymentMethod === 'transfer' ? selectedBank : selectedEwallet;
-
     try {
       await uploadPaymentProofApi(
         Number(bookingId),
-        proofFile, method
+        proofFile
       );
       setIsSubmitted(true);
     } catch (error) {
+      console.error('Upload error:', error);
+      alert('Gagal mengupload bukti pembayaran.');
+    }
   };
 
   const banks = [
@@ -139,15 +140,13 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('transfer')}
-                    className={`p-4 border-2 rounded-lg transition-all ${
-                      paymentMethod === 'transfer'
+                    className={`p-4 border-2 rounded-lg transition-all ${paymentMethod === 'transfer'
                         ? 'border-sky-600 bg-sky-50'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
-                    <Building2 className={`w-6 h-6 mx-auto mb-2 ${
-                      paymentMethod === 'transfer' ? 'text-sky-600' : 'text-gray-400'
-                    }`} />
+                    <Building2 className={`w-6 h-6 mx-auto mb-2 ${paymentMethod === 'transfer' ? 'text-sky-600' : 'text-gray-400'
+                      }`} />
                     <span className={paymentMethod === 'transfer' ? 'text-sky-600' : 'text-gray-600'}>
                       Transfer Bank
                     </span>
@@ -155,15 +154,13 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('ewallet')}
-                    className={`p-4 border-2 rounded-lg transition-all ${
-                      paymentMethod === 'ewallet'
+                    className={`p-4 border-2 rounded-lg transition-all ${paymentMethod === 'ewallet'
                         ? 'border-sky-600 bg-sky-50'
                         : 'border-gray-200 hover:border-gray-300'
-                    }`}
+                      }`}
                   >
-                    <Smartphone className={`w-6 h-6 mx-auto mb-2 ${
-                      paymentMethod === 'ewallet' ? 'text-sky-600' : 'text-gray-400'
-                    }`} />
+                    <Smartphone className={`w-6 h-6 mx-auto mb-2 ${paymentMethod === 'ewallet' ? 'text-sky-600' : 'text-gray-400'
+                      }`} />
                     <span className={paymentMethod === 'ewallet' ? 'text-sky-600' : 'text-gray-600'}>
                       E-Wallet
                     </span>
@@ -181,11 +178,10 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
                         key={bank.id}
                         type="button"
                         onClick={() => setSelectedBank(bank.id)}
-                        className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                          selectedBank === bank.id
+                        className={`w-full p-4 border-2 rounded-lg text-left transition-all ${selectedBank === bank.id
                             ? 'border-sky-600 bg-sky-50'
                             : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -215,11 +211,10 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
                         key={ewallet.id}
                         type="button"
                         onClick={() => setSelectedEwallet(ewallet.id)}
-                        className={`w-full p-4 border-2 rounded-lg text-left transition-all ${
-                          selectedEwallet === ewallet.id
+                        className={`w-full p-4 border-2 rounded-lg text-left transition-all ${selectedEwallet === ewallet.id
                             ? 'border-sky-600 bg-sky-50'
                             : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -293,7 +288,7 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
         <div className="lg:col-span-1">
           <div className="bg-white rounded-xl shadow-md p-6 sticky top-6">
             <h3 className="text-gray-900 mb-4">Ringkasan Pesanan</h3>
-            
+
             <div className="mb-4">
               <img
                 src={booking.carImage}
@@ -311,7 +306,7 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Tanggal</span>
                 <span>
-                  {new Date(booking.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} - 
+                  {new Date(booking.startDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} -
                   {new Date(booking.endDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
                 </span>
               </div>

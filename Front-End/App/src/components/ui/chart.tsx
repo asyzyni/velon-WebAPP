@@ -1,4 +1,3 @@
-"use client";
 
 import * as React from "react";
 import * as RechartsPrimitive from "recharts@2.15.2";

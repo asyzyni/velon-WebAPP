@@ -17,6 +17,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
 
+import org.springframework.web.bind.annotation.CrossOrigin;
+
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/payments")
 public class PaymentProofController {
@@ -30,8 +33,7 @@ public class PaymentProofController {
     @PostMapping("/{bookingId}/upload-proof")
     public ResponseEntity<?> uploadProof(
             @PathVariable Integer bookingId,
-            @RequestParam("file") MultipartFile file
-    ) {
+            @RequestParam("file") MultipartFile file) {
         try {
             // 1. simpan file
             String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
