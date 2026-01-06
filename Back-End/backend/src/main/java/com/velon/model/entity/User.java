@@ -1,13 +1,34 @@
 package com.velon.model.entity;
+
+import javax.persistence.*;
 import java.sql.Timestamp;
+
+@Entity
+@Table(name = "users")
 public class User {
-    private int id;
-    private String name; 
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(nullable = false)
     private String password;
+
+    @Column(name = "role", nullable = false)
+    private String role = "USER"; // default USER
+
+    @Column(name = "created_at", nullable = false, updatable = false)
     private Timestamp createdAt;
 
-    /// Constructors ///
+    // =====================
+    // CONSTRUCTOR
+    // =====================
 
     public User() {}
 
@@ -15,22 +36,26 @@ public class User {
         this.name = name;
         this.email = email;
         this.password = password;
+        this.role = "USER";
     }
 
-    public User(String name, String email, String password, Timestamp createdAt) {
-        this.name = name;
-        this.email = email;
-        this.password = password;
-        this.createdAt = createdAt;
+    // =====================
+    // AUTO SET created_at
+    // =====================
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = new Timestamp(System.currentTimeMillis());
     }
 
-    /// Getters and Setters ///
-    
-    public int getId() {
+    // =====================
+    // GETTER & SETTER
+    // =====================
+
+    public Integer getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 
@@ -58,11 +83,20 @@ public class User {
         this.password = password;
     }
 
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     public Timestamp getCreatedAt() {
         return createdAt;
     }
 
     public void setCreatedAt(Timestamp createdAt) {
-        this.createdAt = createdAt;
+    this.createdAt = createdAt;
     }
+
 }

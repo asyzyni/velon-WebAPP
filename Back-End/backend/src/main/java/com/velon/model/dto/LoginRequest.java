@@ -1,4 +1,4 @@
-package com.velon.controller.auth;
+package com.velon.model.dto;
 
 public class LoginRequest {
     private String email;

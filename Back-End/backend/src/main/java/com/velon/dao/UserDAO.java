@@ -24,8 +24,8 @@ public class UserDAO {
     // REGISTER
     // =====================
     public void register(User user) {
-        String sql = "INSERT INTO users (name, email, password, created_at) " +
-                     "VALUES (?, ?, ?, CURRENT_TIMESTAMP)";
+        String sql = "INSERT INTO users (name, email, password, role, created_at) " +
+                     "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)";
 
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -33,6 +33,7 @@ public class UserDAO {
             stmt.setString(1, user.getName());
             stmt.setString(2, user.getEmail());
             stmt.setString(3, user.getPassword());
+            stmt.setString(4, user.getRole() != null ? user.getRole() : "USER");
 
             stmt.executeUpdate();
 
@@ -60,6 +61,7 @@ public class UserDAO {
                 user.setName(rs.getString("name"));
                 user.setEmail(rs.getString("email"));
                 user.setPassword(rs.getString("password"));
+                user.setRole(rs.getString("role")); // ✅ ADMIN / USER
                 user.setCreatedAt(rs.getTimestamp("created_at"));
                 return user;
             }
