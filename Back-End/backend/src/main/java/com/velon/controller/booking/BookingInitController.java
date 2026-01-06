@@ -1,11 +1,11 @@
 package com.velon.controller.booking;
-import com.velon.service.BookingService;
+
 import com.velon.controller.base.BaseController;
 import com.velon.dao.BookingDAO;
 import com.velon.model.entity.Booking;
 import com.velon.model.entity.BookingStatus;
+import com.velon.service.BookingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,7 +17,11 @@ public class BookingInitController extends BaseController
     private final BookingService bookingService;
     private final ObjectMapper objectMapper;
 
-    public BookingInitController(BookingDAO bookingDAO, BookingService bookingService, ObjectMapper objectMapper) {
+    public BookingInitController(
+            BookingDAO bookingDAO,
+            BookingService bookingService,
+            ObjectMapper objectMapper
+    ) {
         this.bookingDAO = bookingDAO;
         this.bookingService = bookingService;
         this.objectMapper = objectMapper;
@@ -27,10 +31,10 @@ public class BookingInitController extends BaseController
     @PostMapping("/init")
     public Booking create(@RequestBody Object request) {
 
-        // Convert Object to Booking using ObjectMapper
+        System.out.println("🔥 BOOKING INIT CONTROLLER HIT 🔥");
+
         Booking booking = objectMapper.convertValue(request, Booking.class);
 
-        // Validate required fields
         if (booking.getUserId() == null) {
             throw new RuntimeException("userId is required");
         }
@@ -42,6 +46,7 @@ public class BookingInitController extends BaseController
                 booking.getStartDate(),
                 booking.getEndDate()
         );
+
         bookingService.validateBooking(booking.getStartDate());
 
         booking.setStatus(BookingStatus.WAITING_PAYMENT);
@@ -50,7 +55,6 @@ public class BookingInitController extends BaseController
         return bookingDAO.save(booking);
     }
 
-    // unused in this controller
     @Override
     public Object reschedule(Integer id, Object req) {
         throw new UnsupportedOperationException();
@@ -61,4 +65,3 @@ public class BookingInitController extends BaseController
         throw new UnsupportedOperationException();
     }
 }
-

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, MapPin, CreditCard, Clock, CheckCircle, XCircle, AlertCircle, Eye, Check, X } from 'lucide-react';
+import { getAllBookings, updateBookingStatusApi } from '../api/adminBookingApi';
 
 interface Booking {
   id: string;
@@ -32,38 +33,35 @@ export default function AdminBookings() {
     loadBookings();
   }, []);
 
-  const loadBookings = () => {
-    const allBookings = JSON.parse(localStorage.getItem('velon_bookings') || '[]');
-    const sortedBookings = allBookings.sort((a: Booking, b: Booking) => 
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-    setBookings(sortedBookings);
-  };
+  const loadBookings = async () => {
+    const data = await getAllBookings();
 
-  const updateBookingStatus = (bookingId: string, status: Booking['status']) => {
-    const allBookings = JSON.parse(localStorage.getItem('velon_bookings') || '[]');
-    const updatedBookings = allBookings.map((b: Booking) => {
-      if (b.id === bookingId) {
-        return { ...b, status };
-      }
-      return b;
-    });
-    localStorage.setItem('velon_bookings', JSON.stringify(updatedBookings));
-    loadBookings();
-  };
+    // mapping 
+    const mapped = data.map((b: any) => ({
+      ...b, id: String(b.id), userId: String(b.userId), carId: String(b.carId), 
 
-  const updatePaymentStatus = (bookingId: string, paymentStatus: Booking['paymentStatus']) => {
-    const allBookings = JSON.parse(localStorage.getItem('velon_bookings') || '[]');
-    const updatedBookings = allBookings.map((b: Booking) => {
-      if (b.id === bookingId) {
-        return { ...b, paymentStatus };
-      }
-      return b;
-    });
-    localStorage.setItem('velon_bookings', JSON.stringify(updatedBookings));
+      // derived fields 
+      carNAme : 'Mobil ${b.carId}',
+      carImage : '/car-placehorder.jpg',
+      pickupLocation : 'Lokasi Antar',
+      notes: "", 
+      totalDays : Math.ceil((new Date(b.endDate).getTime() - new Date(b.startDate).getTime()) / (1000 * 60 * 60 * 24)),
+      pricePerDay : b.totalPrice, 
+      paymentStatus: b.status === 'CONFIRMED' ? 'paid' : 'pending',
+      createdAt : b.startDate,
+    }));
+
+    setBookings(mapped);
+  }
+
+  const updateBookingStatus = async (bookingId : string, status: Booking['status']) => {
+    await updateBookingStatusApi(Number(bookingId), status.toUpperCase());
     loadBookings();
-    setShowProofModal(false);
-  };
+  }
+
+  const updatePaymentStatus = async() => {
+    setShowProofModal(false)
+  }
 
   const viewPaymentProof = (booking: Booking) => {
     setSelectedBooking(booking);

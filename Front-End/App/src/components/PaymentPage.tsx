@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Upload, CreditCard, Building2, Smartphone, CheckCircle } from 'lucide-react';
+import { getBookingbyId } from '../api/bookingApi';
+import { uploadPaymentProofApi } from '../api/paymentApi';
 
 interface Booking {
   id: string;
@@ -26,14 +28,6 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
   const [proofPreview, setProofPreview] = useState<string>('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  useEffect(() => {
-    const allBookings = JSON.parse(localStorage.getItem('velon_bookings') || '[]');
-    const foundBooking = allBookings.find((b: any) => b.id === bookingId);
-    if (foundBooking) {
-      setBooking(foundBooking);
-    }
-  }, [bookingId]);
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -46,31 +40,41 @@ export default function PaymentPage({ bookingId, onBack }: PaymentPageProps) {
     }
   };
 
+  useEffect(() => {
+    const loadBookings = async () => {
+      const data = await getBookingbyId(Number(bookingId));
+
+      setBooking({
+        id: String(data.id),
+        carName: 'Mobil ${data.carId}',
+        carImage: "/car-placeholder.png",
+        startDate: data.startDate,
+        endDate: data.endDate,
+        totalDays: Math.ceil((new Date(data.endDate).getTime() - new Date(data.startDate).getTime()) / (1000 * 60 * 60 * 24)),
+        totalPrice: data.totalPrice,
+        pickupLocation: "office",
+      });
+    };
+    loadBookings();
+  }, [bookingId]);
+  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!proofFile) {
-      alert('Silakan upload bukti pembayaran');
+      alert('Silakan upload bukti pembayaran.');
       return;
     }
 
-    // Update booking with payment proof
-    const allBookings = JSON.parse(localStorage.getItem('velon_bookings') || '[]');
-    const updatedBookings = allBookings.map((b: any) => {
-      if (b.id === bookingId) {
-        return {
-          ...b,
-          paymentStatus: 'pending',
-          paymentProof: proofPreview,
-          paymentMethod: paymentMethod === 'transfer' ? selectedBank : selectedEwallet,
-          paymentDate: new Date().toISOString(),
-        };
-      }
-      return b;
-    });
+    const method = paymentMethod === 'transfer' ? selectedBank : selectedEwallet;
 
-    localStorage.setItem('velon_bookings', JSON.stringify(updatedBookings));
-    setIsSubmitted(true);
+    try {
+      await uploadPaymentProofApi(
+        Number(bookingId),
+        proofFile, method
+      );
+      setIsSubmitted(true);
+    } catch (error) {
   };
 
   const banks = [

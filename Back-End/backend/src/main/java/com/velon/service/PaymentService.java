@@ -40,7 +40,7 @@ public class PaymentService {
         transaction.setStatus("PAID");
         transaction.setCreatedAt(LocalDateTime.now());
 
-        transactionDAO.save(transaction);
+        transactionDAO.insert(transaction);
         
     }
 

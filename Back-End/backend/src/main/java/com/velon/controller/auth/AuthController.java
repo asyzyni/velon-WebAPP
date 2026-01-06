@@ -1,47 +1,44 @@
 package com.velon.controller.auth;
 
-import org.springframework.web.bind.annotation.*;
 import com.velon.dao.UserDAO;
 import com.velon.model.entity.User;
-import com.velon.model.dto.LoginRequest;
-import com.velon.model.dto.RegisterRequest;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
-    private final UserDAO userDAO = new UserDAO();
 
-    @GetMapping
-    public String authInfo() {
-        return "Auth API - Use POST /auth/register or POST /auth/login with JSON body";
+    private final UserDAO userDAO;
+
+    public AuthController(UserDAO userDAO) {
+        this.userDAO = userDAO;
     }
 
-    // Register - Now accepts JSON
+    // =====================
+    // REGISTER
+    // =====================
     @PostMapping("/register")
-    public String register(@RequestBody RegisterRequest request) {
-        User user = new User(request.getName(), request.getEmail(), request.getPassword());
-        boolean success = userDAO.register(user);
-
-        if (success) {
-            return "Registration successful!";
-        } else {
-            return "Registration failed.";
-        }
+    public ResponseEntity<String> register(@RequestBody User user) {
+        userDAO.register(user);
+        return ResponseEntity.ok("REGISTER SUCCESS");
     }
 
-    // Login - Now accepts JSON
+    // =====================
+    // LOGIN
+    // =====================
     @PostMapping("/login")
-    public String login(@RequestBody LoginRequest request) {
-        User user = userDAO.findbyEmail(request.getEmail(), request.getPassword());
+    public ResponseEntity<?> login(@RequestBody LoginRequest req) {
+        User user = userDAO.findByEmail(req.getEmail());
 
         if (user == null) {
-            return "Email tidak ditemukan";
+            return ResponseEntity.status(401).body("User not found");
         }
 
-        if (!user.getPassword().equals(request.getPassword())) {
-            return "Password salah";
+        if (!user.getPassword().equals(req.getPassword())) {
+            return ResponseEntity.status(401).body("Wrong password");
         }
 
-        return "Login successful!, welcome " + user.getName();
+        return ResponseEntity.ok(user);
     }
-} 
+}
