@@ -11,8 +11,6 @@ import com.velon.service.BookingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/bookings")
 public class BookingRescheduleController extends BaseController
@@ -41,14 +39,18 @@ public class BookingRescheduleController extends BaseController
             @PathVariable Integer id,
             @RequestBody Object request
     ) {
+
         System.out.println("🔥 RESCHEDULE HIT ID = " + id);
 
-        // CAST DI DALAM METHOD (INI YANG BENAR)
-        RescheduleRequest req = objectMapper.convertValue(request, RescheduleRequest.class);
+        // ✅ abstraction: parsing disembunyikan
+        RescheduleRequest req =
+                objectMapper.convertValue(request, RescheduleRequest.class);
 
+        // 1️⃣ ambil booking lama
         Booking booking = bookingDAO.findById(id)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
+        // 2️⃣ rule bisnis
         if (booking.getStatus() == BookingStatus.CANCELLED) {
             throw new RuntimeException("Cannot reschedule cancelled booking");
         }
@@ -56,39 +58,26 @@ public class BookingRescheduleController extends BaseController
         bookingService.validateBooking(req.getStartDate());
         bookingService.validateDate(req.getStartDate(), req.getEndDate());
 
-        List<Booking> conflicts = bookingDAO.findConfirmedBookingInRange(
-                req.getStartDate(),
-                req.getEndDate()
-        );
-
-        boolean hasConflict = conflicts.stream()
-                .anyMatch(b ->
-                        b.getCarId().equals(booking.getCarId()) &&
-                        !b.getId().equals(booking.getId())
-                );
-
-        if (hasConflict) {
-            throw new RuntimeException("Car not available");
-        }
-
+        // ✅ INI YANG TADI HILANG
         Car car = carDAO.findById(booking.getCarId())
                 .orElseThrow(() -> new RuntimeException("Car not found"));
 
-        booking.setStartDate(req.getStartDate());
-        booking.setEndDate(req.getEndDate());
-
+        // 3️⃣ hitung ulang harga
         int newPrice = bookingService.calculateTotalPrice(
                 req.getStartDate(),
                 req.getEndDate(),
                 car.getHargaPerHari()
         );
 
+        // 4️⃣ update booking
+        booking.setStartDate(req.getStartDate());
+        booking.setEndDate(req.getEndDate());
         booking.setTotalPrice(newPrice);
 
         return bookingDAO.save(booking);
     }
 
-    // unused
+    // unused (polymorphism)
     @Override
     public Object create(Object req) {
         throw new UnsupportedOperationException();

@@ -37,14 +37,14 @@ public class BookingService {
 
     // Hitung Total Harga Booking
 
-    public int calculateTotalPrice(LocalDate startDate, LocalDate endDate, int pricePerDay) {
+    public int calculateTotalPrice(LocalDate startDate, LocalDate endDate, int hargaPerHari) {
         long totalDays = ChronoUnit.DAYS.between(startDate, endDate) + 1; // Termasuk hari terakhir
 
         if (totalDays <= 0) {
-            throw new IllegalArgumentException("Tanggal Booking tidak valid");
+            throw new RuntimeException("Tanggal Booking tidak valid");
         }
 
-        return (int) (totalDays * pricePerDay);
+        return (int) (totalDays * hargaPerHari);
     }
 
     // Generate Token Pembayaran Unik
