@@ -27,7 +27,7 @@ public class BookingInitController extends BaseController
         this.bookingService = bookingService;
         this.objectMapper = objectMapper;
 
-        // 🔥 INI KUNCI UTAMA (JANGAN DIHAPUS)
+        //  INI KUNCI UTAMA (JANGAN DIHAPUS)
         this.objectMapper.configure(
                 DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
                 false
@@ -38,7 +38,7 @@ public class BookingInitController extends BaseController
     @PostMapping("/init")
     public Booking create(@RequestBody Object request) {
 
-        System.out.println("🔥 BOOKING INIT CONTROLLER HIT 🔥");
+        System.out.println(" BOOKING INIT CONTROLLER HIT 🔥");
 
         // ⬇️ BIAR FIELD ASING (pickupLocation dll) TIDAK ERROR
         Booking booking = objectMapper.convertValue(request, Booking.class);

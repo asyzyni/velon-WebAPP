@@ -1,216 +1,185 @@
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, MapPin, CreditCard, Clock, CheckCircle, XCircle, AlertCircle } from "lucide-react";
+import {
+  Calendar,
+  MapPin,
+  CreditCard,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 import { useAuth } from "./AuthContext";
 
 /* ================= TYPES ================= */
 
 interface Booking {
-  id: string;
-  userId: string;
-  carName: string;
-  carImage: string;
+  id: number;
+  userId: number;
+  carId: number;
   startDate: string;
   endDate: string;
-  pickupLocation: string;
-  notes?: string;
-  totalDays: number;
   totalPrice: number;
-  status: "pending" | "confirmed" | "completed" | "cancelled";
-  paymentStatus: "unpaid" | "pending" | "paid";
-  createdAt: string;
+  status: "WAITING_PAYMENT" | "WAITING_CONFIRMATION" | "CONFIRMED" | "COMPLETED";
 }
 
-interface BookingHistoryProps {
+interface Props {
   onPayment: (bookingId: string) => void;
 }
 
-type FilterStatus = "all" | Booking["status"];
-
 /* ================= CONFIG ================= */
 
-const STATUS_LABEL: Record<Booking["status"], string> = {
-  pending: "Menunggu Konfirmasi",
-  confirmed: "Dikonfirmasi",
-  completed: "Selesai",
-  cancelled: "Dibatalkan",
-};
+const STATUS_LABEL = {
+  WAITING_PAYMENT: "Menunggu Pembayaran",
+  WAITING_CONFIRMATION: "Menunggu Konfirmasi",
+  CONFIRMED: "Dikonfirmasi",
+  COMPLETED: "Selesai",
+} as const;
 
-const STATUS_COLOR: Record<Booking["status"], string> = {
-  pending: "bg-yellow-100 text-yellow-700",
-  confirmed: "bg-blue-100 text-blue-700",
-  completed: "bg-green-100 text-green-700",
-  cancelled: "bg-red-100 text-red-700",
-};
+const STATUS_COLOR = {
+  WAITING_PAYMENT: "bg-red-100 text-red-700",
+  WAITING_CONFIRMATION: "bg-yellow-100 text-yellow-700",
+  CONFIRMED: "bg-blue-100 text-blue-700",
+  COMPLETED: "bg-green-100 text-green-700",
+} as const;
 
-const PAYMENT_LABEL: Record<Booking["paymentStatus"], string> = {
-  unpaid: "Belum Bayar",
-  pending: "Menunggu Verifikasi",
-  paid: "Sudah Bayar",
-};
-
-const PAYMENT_COLOR: Record<Booking["paymentStatus"], string> = {
-  unpaid: "bg-red-100 text-red-700",
-  pending: "bg-yellow-100 text-yellow-700",
-  paid: "bg-green-100 text-green-700",
-};
-
-const STATUS_ICON: Record<Booking["status"], JSX.Element> = {
-  pending: <AlertCircle className="w-5 h-5" />,
-  confirmed: <CheckCircle className="w-5 h-5" />,
-  completed: <CheckCircle className="w-5 h-5" />,
-  cancelled: <XCircle className="w-5 h-5" />,
-};
+const STATUS_ICON = {
+  WAITING_PAYMENT: <AlertCircle className="w-4 h-4" />,
+  WAITING_CONFIRMATION: <AlertCircle className="w-4 h-4" />,
+  CONFIRMED: <CheckCircle className="w-4 h-4" />,
+  COMPLETED: <CheckCircle className="w-4 h-4" />,
+} as const;
 
 /* ================= COMPONENT ================= */
 
-export default function BookingHistory({ onPayment }: BookingHistoryProps) {
+export default function BookingHistory({ onPayment }: Props) {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [filter, setFilter] = useState<FilterStatus>("all");
+  const [filter, setFilter] =
+    useState<"all" | Booking["status"]>("all");
 
-  /* ========== DATA LOAD (sementara localStorage) ========== */
+  /* ===== LOAD FROM BACKEND ===== */
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
-    // TODO: ganti ke API getBookingsByUser(user.id)
-    const raw = JSON.parse(localStorage.getItem("velon_bookings") || "[]") as Booking[];
+    fetch(`http://localhost:8081/booking/history/${user.id}`)
+          .then(res => {
+      if (!res.ok) {
+        throw new Error("Failed to fetch bookings");
+      }
+      return res.json();
+    })
+    .then(data => {
+      console.log("BOOKINGS FROM BACKEND:", data);
+      setBookings(data);
+    })
+    .catch(err => {
+      console.error("LOAD BOOKINGS ERROR:", err);
+    });
+}, [user?.id]);
+      
+      
 
-    const userBookings = raw
-      .filter(b => b.userId === user.id)
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() -
-          new Date(a.createdAt).getTime()
-      );
-
-    setBookings(userBookings);
-  }, [user]);
-
-  /* ========== FILTERED DATA ========== */
+  /* ===== FILTER ===== */
   const filteredBookings = useMemo(() => {
     if (filter === "all") return bookings;
     return bookings.filter(b => b.status === filter);
   }, [bookings, filter]);
 
-  /* ================= RENDER ================= */
-
   return (
-    <div>
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-gray-900">Riwayat Sewa</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Riwayat Sewa</h2>
 
         <div className="flex gap-2">
-          {["all", "pending", "confirmed", "completed"].map(f => (
+          {["all", "WAITING_PAYMENT", "CONFIRMED", "COMPLETED"].map(f => (
             <button
               key={f}
-              onClick={() => setFilter(f as FilterStatus)}
-              className={`px-4 py-2 rounded-lg transition-colors ${
+              onClick={() => setFilter(f as any)}
+              className={`px-4 py-2 rounded-lg text-sm ${
                 filter === f
-                  ? "bg-gradient-to-r from-[#023EBA] to-gray-700 text-white"
-                  : "bg-white text-gray-600 border border-gray-300 hover:bg-gray-50"
+                  ? "bg-[#023EBA] text-white"
+                  : "border text-gray-600"
               }`}
             >
-              {f === "all"
-                ? "Semua"
-                : STATUS_LABEL[f as Booking["status"]]}
+              {f === "all" ? "Semua" : STATUS_LABEL[f as Booking["status"]]}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Empty State */}
+      {/* Empty */}
       {filteredBookings.length === 0 && (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-500">
-          <Calendar className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <p>Belum ada riwayat sewa</p>
+        <div className="bg-white p-10 rounded-lg text-center text-gray-500">
+          Belum ada booking
         </div>
       )}
 
-      {/* Booking List */}
+      {/* List */}
       <div className="space-y-4">
-        {filteredBookings.map(booking => (
-          <div key={booking.id} className="bg-white rounded-xl shadow-md">
-            <div className="p-6 flex gap-4">
-              {/* Image */}
-              <img
-                src={booking.carImage}
-                alt={booking.carName}
-                className="w-32 h-32 object-cover rounded-lg"
-              />
+        {filteredBookings.map(b => {
+          const days = Math.ceil(
+            (new Date(b.endDate).getTime() -
+              new Date(b.startDate).getTime()) /
+              (1000 * 60 * 60 * 24)
+          );
 
-              {/* Content */}
-              <div className="flex-1">
-                <div className="flex justify-between mb-3">
-                  <div>
-                    <h3 className="text-gray-900">{booking.carName}</h3>
-                    <p className="text-sm text-gray-500">ID: {booking.id}</p>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <span className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm ${STATUS_COLOR[booking.status]}`}>
-                      {STATUS_ICON[booking.status]}
-                      {STATUS_LABEL[booking.status]}
-                    </span>
-                    <span className={`px-3 py-1 rounded-full text-sm ${PAYMENT_COLOR[booking.paymentStatus]}`}>
-                      {PAYMENT_LABEL[booking.paymentStatus]}
-                    </span>
-                  </div>
+          return (
+            <div key={b.id} className="bg-white rounded-xl shadow p-6">
+              <div className="flex justify-between mb-4">
+                <div>
+                  <h3 className="font-medium">
+                    Mobil ID #{b.carId}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Booking ID: {b.id}
+                  </p>
                 </div>
 
-                {/* Info */}
-                <div className="grid md:grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    {new Date(booking.startDate).toLocaleDateString("id-ID")} –{" "}
-                    {new Date(booking.endDate).toLocaleDateString("id-ID")}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    {booking.totalDays} hari
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    {booking.pickupLocation}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4" />
-                    Rp {booking.totalPrice.toLocaleString("id-ID")}
-                  </div>
-                </div>
-
-                {/* Notes */}
-                {booking.notes && (
-                  <div className="mb-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
-                    <span className="text-gray-700">Catatan:</span> {booking.notes}
-                  </div>
-                )}
-
-                {/* Actions */}
-                {booking.paymentStatus === "unpaid" && (
-                  <button
-                    onClick={() => onPayment(booking.id)}
-                    className="px-4 py-2 bg-gradient-to-r from-[#023EBA] to-gray-700 text-white rounded-lg"
-                  >
-                    Bayar Sekarang
-                  </button>
-                )}
-
-                {booking.paymentStatus === "pending" && (
-                  <span className="px-4 py-2 bg-yellow-50 text-yellow-700 rounded-lg text-sm">
-                    Menunggu verifikasi pembayaran
-                  </span>
-                )}
-
-                {booking.paymentStatus === "paid" && (
-                  <span className="px-4 py-2 bg-green-50 text-green-700 rounded-lg text-sm">
-                    Pembayaran terverifikasi
-                  </span>
-                )}
+                <span
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm ${STATUS_COLOR[b.status]}`}
+                >
+                  {STATUS_ICON[b.status]}
+                  {STATUS_LABEL[b.status]}
+                </span>
               </div>
+
+              <div className="grid md:grid-cols-2 gap-3 text-sm text-gray-600 mb-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  {b.startDate} – {b.endDate}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  {days} hari
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Lokasi Pickup
+                </div>
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  Rp {b.totalPrice.toLocaleString("id-ID")}
+                </div>
+              </div>
+
+              {/*  TOMBOL BAYAR */}
+              {b.status === "WAITING_PAYMENT" && (
+                <button
+                  onClick={() => onPayment(String(b.id))}
+                  className="px-4 py-2 bg-[#023EBA] text-white rounded-lg"
+                >
+                  Bayar Sekarang
+                </button>
+              )}
+
+              {b.status === "WAITING_CONFIRMATION" && (
+                <span className="text-yellow-700 text-sm">
+                  Menunggu verifikasi pembayaran
+                </span>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

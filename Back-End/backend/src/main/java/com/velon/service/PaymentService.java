@@ -6,6 +6,9 @@ import com.velon.model.entity.Booking;
 import com.velon.model.entity.BookingStatus;
 import com.velon.model.entity.Transaction;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.UUID;
 
 @Service
 public class PaymentService {
@@ -13,15 +16,20 @@ public class PaymentService {
     private final BookingDAO bookingDAO;
     private final TransactionDAO transactionDAO;
 
-    public PaymentService(BookingDAO bookingDAO, TransactionDAO transactionDAO) {
+    public PaymentService(
+            BookingDAO bookingDAO,
+            TransactionDAO transactionDAO
+    ) {
         this.bookingDAO = bookingDAO;
         this.transactionDAO = transactionDAO;
     }
 
-    public Transaction submitPayment(
+    /**
+     * USER UPLOAD PAYMENT PROOF
+     */
+    public Transaction uploadPaymentProof(
             Integer bookingId,
-            String paymentMethod,
-            String paymentProof
+            MultipartFile file
     ) {
         Booking booking = bookingDAO.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
@@ -30,20 +38,31 @@ public class PaymentService {
             throw new RuntimeException("Booking not waiting payment");
         }
 
+        // simulate save file (no filesystem dulu, aman buat demo)
+        String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
+
         Transaction transaction = transactionDAO.findByBookingId(bookingId);
         if (transaction == null) {
             transaction = new Transaction();
             transaction.setBookingId(bookingId);
         }
 
-        transaction.setPaymentMethod(paymentMethod);
-        transaction.setPaymentProof(paymentProof);
+        transaction.setPaymentMethod("TRANSFER");
+        transaction.setPaymentProof(filename);
         transaction.setVerified(false);
 
-        // ✅ JPA SAVE (BUKAN UPDATE)
-        return transactionDAO.save(transaction);
+        transactionDAO.save(transaction);
+
+        // 🔴 PENTING: UPDATE BOOKING STATUS
+        booking.setStatus(BookingStatus.WAITING_CONFIRMATION);
+        bookingDAO.save(booking);
+
+        return transaction;
     }
 
+    /**
+     * ADMIN CONFIRM PAYMENT
+     */
     public void verifyPayment(Integer bookingId) {
         Transaction transaction = transactionDAO.findByBookingId(bookingId);
         if (transaction == null) {
@@ -51,13 +70,11 @@ public class PaymentService {
         }
 
         transaction.setVerified(true);
-        
-
-        // ✅ JPA SAVE (BUKAN UPDATE)
         transactionDAO.save(transaction);
 
         Booking booking = bookingDAO.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
+
         booking.setStatus(BookingStatus.CONFIRMED);
         bookingDAO.save(booking);
     }

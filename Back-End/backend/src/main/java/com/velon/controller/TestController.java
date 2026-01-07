@@ -8,7 +8,7 @@ public class TestController {
 
     @GetMapping("/ping")
     public String ping() {
-        System.out.println("🔥 PING HIT 🔥");
+        System.out.println(" PING HIT 🔥");
         return "PONG";
     }
 }

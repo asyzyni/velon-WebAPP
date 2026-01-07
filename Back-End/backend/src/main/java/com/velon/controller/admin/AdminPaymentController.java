@@ -14,10 +14,9 @@ public class AdminPaymentController extends BaseController {
         this.paymentService = paymentService;
     }
 
-    @PutMapping("/verify/{bookingId}")
-    public Object verify(@PathVariable Integer bookingId) {
-
+    @PutMapping("/{bookingId}/confirm")
+    public Object confirm(@PathVariable Integer bookingId) {
         paymentService.verifyPayment(bookingId);
-        return ok("Payment verified");
+        return ok("PAYMENT CONFIRMED");
     }
 }

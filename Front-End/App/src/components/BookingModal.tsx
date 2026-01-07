@@ -45,8 +45,8 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
     }
 
     const bookingPayload = {
-      userId: Number(user.id),     // 🔥 WAJIB
-      carId: Number(car.id),       // 🔥 WAJIB
+      userId: Number(user.id),     //  WAJIB
+      carId: Number(car.id),       //  WAJIB
       startDate,                   // YYYY-MM-DD
       endDate,                     // YYYY-MM-DD
       pickupLocation,

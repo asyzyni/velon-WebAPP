@@ -27,7 +27,7 @@ public class BookingCancelController extends BaseController
     @PutMapping("/cancel/{id}")
     public Object cancel(@PathVariable Integer id) {
 
-        System.out.println("🔥 CANCEL HIT ID = " + id);
+        System.out.println(" CANCEL HIT ID = " + id);
 
         Booking booking = bookingDAO.findById(id)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
