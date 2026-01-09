@@ -2,20 +2,29 @@ import { useState } from 'react';
 import { useAuth } from './AuthContext';
 import CarCatalog from './CarCatalog';
 import BookingHistory from './BookingHistory';
-import PaymentPage from './PaymentPage';
+import PaymentModal from './PaymentModal';
 import HomePage from './HomePage';
 import { Car, History, LogOut, User, Home } from 'lucide-react';
 
-type Page = 'home' | 'catalog' | 'history' | 'payment';
+type Page = 'home' | 'catalog' | 'history';
 
 export default function UserDashboard() {
   const [currentPage, setCurrentPage] = useState<Page>('home');
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const [selectedBookingId, setSelectedBookingId] = useState<number | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [refreshBookings, setRefreshBookings] = useState(0);
   const { user, logout } = useAuth();
 
   const handlePayment = (bookingId: string) => {
-    setSelectedBookingId(bookingId);
-    setCurrentPage('payment');
+    setSelectedBookingId(Number(bookingId));
+    setShowPaymentModal(true);
+  };
+
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false);
+    setSelectedBookingId(null);
+    // Trigger refresh of booking list
+    setRefreshBookings(prev => prev + 1);
   };
 
   return (
@@ -51,33 +60,30 @@ export default function UserDashboard() {
           <div className="flex gap-2">
             <button
               onClick={() => setCurrentPage('home')}
-              className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${
-                currentPage === 'home'
-                  ? 'border-[#023EBA] text-[#023EBA]'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
+              className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${currentPage === 'home'
+                ? 'border-[#023EBA] text-[#023EBA]'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
             >
               <Home className="w-5 h-5" />
               <span>Home</span>
             </button>
             <button
               onClick={() => setCurrentPage('catalog')}
-              className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${
-                currentPage === 'catalog'
-                  ? 'border-[#023EBA] text-[#023EBA]'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
+              className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${currentPage === 'catalog'
+                ? 'border-[#023EBA] text-[#023EBA]'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
             >
               <Car className="w-5 h-5" />
               <span>Katalog Mobil</span>
             </button>
             <button
               onClick={() => setCurrentPage('history')}
-              className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${
-                currentPage === 'history'
-                  ? 'border-[#023EBA] text-[#023EBA]'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
+              className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${currentPage === 'history'
+                ? 'border-[#023EBA] text-[#023EBA]'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
             >
               <History className="w-5 h-5" />
               <span>Riwayat Sewa</span>
@@ -90,14 +96,16 @@ export default function UserDashboard() {
       <main className="container mx-auto px-4 py-8">
         {currentPage === 'home' && <HomePage />}
         {currentPage === 'catalog' && <CarCatalog />}
-        {currentPage === 'history' && <BookingHistory onPayment={handlePayment} />}
-        {currentPage === 'payment' && selectedBookingId && (
-          <PaymentPage 
-            bookingId={selectedBookingId} 
-            onBack={() => setCurrentPage('history')}
-          />
-        )}
+        {currentPage === 'history' && <BookingHistory onPayment={handlePayment} refreshKey={refreshBookings} />}
       </main>
+
+      {/* Payment Modal */}
+      {showPaymentModal && selectedBookingId && (
+        <PaymentModal
+          bookingId={selectedBookingId}
+          onClose={handleClosePaymentModal}
+        />
+      )}
     </div>
   );
 }

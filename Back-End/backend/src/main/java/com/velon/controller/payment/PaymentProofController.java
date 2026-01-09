@@ -1,7 +1,9 @@
 package com.velon.controller.payment;
 
-import com.velon.dao.TransactionDAO;
-import com.velon.model.entity.Transaction;
+import com.velon.controller.base.BaseController;
+import com.velon.dao.BookingDAO;
+import com.velon.model.entity.Booking;
+import com.velon.model.entity.BookingStatus;
 
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,40 +24,48 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/payments")
-public class PaymentProofController {
+public class PaymentProofController extends BaseController {
 
-    private final TransactionDAO transactionDAO;
+    private final BookingDAO bookingDAO;
 
-    public PaymentProofController(TransactionDAO transactionDAO) {
-        this.transactionDAO = transactionDAO;
+    public PaymentProofController(BookingDAO bookingDAO) {
+        this.bookingDAO = bookingDAO;
     }
 
     @PostMapping("/{bookingId}/upload-proof")
-    public ResponseEntity<?> uploadProof(
+    public Object uploadProof(
             @PathVariable Integer bookingId,
             @RequestParam("file") MultipartFile file) {
         try {
-            // 1. simpan file
+            System.out.println("📤 UPLOAD PROOF - Booking ID: " + bookingId);
+
+            // 1. Find booking
+            Booking booking = bookingDAO.findById(bookingId).orElse(null);
+            if (booking == null) {
+                System.out.println("❌ Booking not found: " + bookingId);
+                return ResponseEntity.badRequest().body("Booking not found");
+            }
+
+            // 2. Save file
             String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
             Path path = Paths.get("uploads/" + filename);
             Files.createDirectories(path.getParent());
             Files.write(path, file.getBytes());
 
-            // 2. update transaction
-            Transaction trx = transactionDAO.findByBookingId(bookingId);
-            if (trx == null) {
-                return ResponseEntity.badRequest().body("Transaction not found");
-            }
+            System.out.println("✅ File saved: " + filename);
 
-            trx.setPaymentProof(filename);
-            trx.setVerified(false);
-            transactionDAO.save(trx);
+            // 3. Update booking status
+            booking.setStatus(BookingStatus.WAITING_CONFIRMATION);
+            bookingDAO.save(booking);
 
-            return ResponseEntity.ok("UPLOAD OK");
+            System.out.println("✅ Booking status updated to WAITING_CONFIRMATION");
+
+            return ok("Upload successful. Waiting for admin confirmation.");
 
         } catch (Exception e) {
+            System.out.println("❌ Upload failed");
             e.printStackTrace();
-            return ResponseEntity.status(500).body("Upload failed");
+            return ResponseEntity.status(500).body("Upload failed: " + e.getMessage());
         }
     }
 }

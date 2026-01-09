@@ -23,6 +23,7 @@ interface Booking {
 
 interface Props {
   onPayment: (bookingId: string) => void;
+  refreshKey?: number;
 }
 
 /* ================= CONFIG ================= */
@@ -50,7 +51,7 @@ const STATUS_ICON = {
 
 /* ================= COMPONENT ================= */
 
-export default function BookingHistory({ onPayment }: Props) {
+export default function BookingHistory({ onPayment, refreshKey }: Props) {
   const { user } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filter, setFilter] =
@@ -60,23 +61,23 @@ export default function BookingHistory({ onPayment }: Props) {
   useEffect(() => {
     if (!user?.id) return;
 
-    fetch(`http://localhost:8081/booking/history/${user.id}`)
-          .then(res => {
-      if (!res.ok) {
-        throw new Error("Failed to fetch bookings");
-      }
-      return res.json();
-    })
-    .then(data => {
-      console.log("BOOKINGS FROM BACKEND:", data);
-      setBookings(data);
-    })
-    .catch(err => {
-      console.error("LOAD BOOKINGS ERROR:", err);
-    });
-}, [user?.id]);
-      
-      
+    fetch(`http://localhost:8081/bookings/history/${user.id}`)
+      .then(res => {
+        if (!res.ok) {
+          throw new Error("Failed to fetch bookings");
+        }
+        return res.json();
+      })
+      .then(data => {
+        console.log("BOOKINGS FROM BACKEND:", data);
+        setBookings(data);
+      })
+      .catch(err => {
+        console.error("LOAD BOOKINGS ERROR:", err);
+      });
+  }, [user?.id, refreshKey]);
+
+
 
   /* ===== FILTER ===== */
   const filteredBookings = useMemo(() => {
@@ -95,11 +96,10 @@ export default function BookingHistory({ onPayment }: Props) {
             <button
               key={f}
               onClick={() => setFilter(f as any)}
-              className={`px-4 py-2 rounded-lg text-sm ${
-                filter === f
-                  ? "bg-[#023EBA] text-white"
-                  : "border text-gray-600"
-              }`}
+              className={`px-4 py-2 rounded-lg text-sm ${filter === f
+                ? "bg-[#023EBA] text-white"
+                : "border text-gray-600"
+                }`}
             >
               {f === "all" ? "Semua" : STATUS_LABEL[f as Booking["status"]]}
             </button>
@@ -120,7 +120,7 @@ export default function BookingHistory({ onPayment }: Props) {
           const days = Math.ceil(
             (new Date(b.endDate).getTime() -
               new Date(b.startDate).getTime()) /
-              (1000 * 60 * 60 * 24)
+            (1000 * 60 * 60 * 24)
           );
 
           return (

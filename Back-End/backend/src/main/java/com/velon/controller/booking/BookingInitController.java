@@ -21,17 +21,15 @@ public class BookingInitController extends BaseController
     public BookingInitController(
             BookingDAO bookingDAO,
             BookingService bookingService,
-            ObjectMapper objectMapper
-    ) {
+            ObjectMapper objectMapper) {
         this.bookingDAO = bookingDAO;
         this.bookingService = bookingService;
         this.objectMapper = objectMapper;
 
-        //  INI KUNCI UTAMA (JANGAN DIHAPUS)
+        // INI KUNCI UTAMA (JANGAN DIHAPUS)
         this.objectMapper.configure(
                 DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES,
-                false
-        );
+                false);
     }
 
     @Override
@@ -64,6 +62,16 @@ public class BookingInitController extends BaseController
         booking.setTotalPrice(123456); // HARD-CODE DULU, YANG PENTING MASUK
 
         return bookingDAO.save(booking);
+    }
+
+    @GetMapping("/{id}")
+    public Object getBookingById(@PathVariable Integer id) {
+        System.out.println("✅ GET BOOKING BY ID: " + id);
+        Booking booking = bookingDAO.findById(id).orElse(null);
+        if (booking == null) {
+            throw new RuntimeException("Booking not found with id: " + id);
+        }
+        return ok(booking);
     }
 
     @Override
