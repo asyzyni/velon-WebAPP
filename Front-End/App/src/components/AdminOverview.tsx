@@ -137,7 +137,7 @@ export default function AdminOverview() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main column */}
-        <div className="lg:col-span-2 flex flex-col gap-6">
+        <div className="lg:col-span-2 flex flex-col gap-6 min-w-0">
           <div className="grid sm:grid-cols-2 gap-4">
             {stats.map((stat, index) => (
               <div key={index} className="bg-white rounded-xl shadow-md p-6">
@@ -162,14 +162,14 @@ export default function AdminOverview() {
               <p className="text-sm text-gray-400 py-6 text-center">Belum ada booking.</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-[560px] text-sm">
                   <thead>
                     <tr className="text-left text-gray-500 border-b border-gray-100">
-                      <th className="py-2 pr-4 font-normal">No</th>
-                      <th className="py-2 pr-4 font-normal">Nama Pelanggan</th>
-                      <th className="py-2 pr-4 font-normal">Mobil</th>
-                      <th className="py-2 pr-4 font-normal">Tanggal</th>
-                      <th className="py-2 pr-4 font-normal">Status</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">No</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">Nama Pelanggan</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">Mobil</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">Tanggal</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -178,16 +178,16 @@ export default function AdminOverview() {
                       const meta = bookingStatusMeta(b.status);
                       return (
                         <tr key={b.id} className="border-b border-gray-50 last:border-0">
-                          <td className="py-3 pr-4 text-gray-500">{idx + 1}</td>
-                          <td className="py-3 pr-4 text-gray-900 font-medium">
+                          <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">{idx + 1}</td>
+                          <td className="py-3 pr-4 text-gray-900 font-medium whitespace-nowrap">
                             {b.userName || `User #${b.userId}`}
                           </td>
-                          <td className="py-3 pr-4 text-gray-700">
+                          <td className="py-3 pr-4 text-gray-700 whitespace-nowrap">
                             {b.carName || car?.namaMobil || `Mobil #${b.carId}`}
                           </td>
-                          <td className="py-3 pr-4 text-gray-500">{formatDateID(b.startDate)}</td>
-                          <td className="py-3 pr-4">
-                            <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${meta.bg} ${meta.border} ${meta.text}`}>
+                          <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">{formatDateID(b.startDate)}</td>
+                          <td className="py-3 pr-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-medium border ${meta.bg} ${meta.border} ${meta.text}`}>
                               {meta.label}
                             </span>
                           </td>
@@ -209,7 +209,7 @@ export default function AdminOverview() {
             </div>
             <p className="text-gray-900 font-medium">{user?.name || 'Admin'}</p>
             <p className="text-sm text-gray-500">{user?.email || '-'}</p>
-            <span className="mt-2 px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 uppercase">
+            <span className="mt-2 inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 uppercase">
               {user?.role || 'admin'}
             </span>
           </div>

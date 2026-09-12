@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
-import { Car, LogOut, User, LayoutDashboard, Calendar, LayoutGrid } from 'lucide-react';
-import AdminBookings from './AdminBookings';
+import { Car, LogOut, User, LayoutDashboard, LayoutGrid } from 'lucide-react';
 import AdminSchedule from './AdminSchedule';
 import AdminOverview from './AdminOverview';
 
-type Page = 'dashboard' | 'bookings' | 'schedule';
+type Page = 'dashboard' | 'schedule';
 
 export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
@@ -57,17 +56,6 @@ export default function AdminDashboard() {
               <span>Dashboard</span>
             </button>
             <button
-              onClick={() => setCurrentPage('bookings')}
-              className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${
-                currentPage === 'bookings'
-                  ? 'border-[#023EBA] text-[#023EBA]'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Calendar className="w-5 h-5" />
-              <span>Kelola Booking</span>
-            </button>
-            <button
               onClick={() => setCurrentPage('schedule')}
               className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${
                 currentPage === 'schedule'
@@ -85,7 +73,6 @@ export default function AdminDashboard() {
       {/* Content */}
       <main className="container mx-auto px-4 py-8">
         {currentPage === 'dashboard' && <AdminOverview />}
-        {currentPage === 'bookings' && <AdminBookings />}
         {currentPage === 'schedule' && <AdminSchedule />}
       </main>
     </div>

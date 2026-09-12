@@ -136,7 +136,7 @@ export default function BookingHistory({ onPayment, refreshKey }: Props) {
                 </div>
 
                 <span
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm ${STATUS_COLOR[b.status]}`}
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm whitespace-nowrap shrink-0 ${STATUS_COLOR[b.status]}`}
                 >
                   {STATUS_ICON[b.status]}
                   {STATUS_LABEL[b.status]}

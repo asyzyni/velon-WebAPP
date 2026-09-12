@@ -259,7 +259,7 @@ export default function AdminSchedule() {
           </div>
           <div className="flex items-center gap-4 flex-wrap">
             {BOOKING_STATUS_ORDER.map(key => (
-              <div key={key} className="flex items-center gap-1.5">
+              <div key={key} className="flex items-center gap-1.5 whitespace-nowrap">
                 <span className={`w-2.5 h-2.5 rounded-sm border ${BOOKING_STATUS_META[key].bg} ${BOOKING_STATUS_META[key].border}`} />
                 <span className="text-xs text-gray-500">{BOOKING_STATUS_META[key].label}</span>
               </div>
@@ -370,7 +370,7 @@ export default function AdminSchedule() {
                 {selectedBooking.carName || (selectedCar ? selectedCar.namaMobil : `Mobil #${selectedBooking.carId}`)}
               </div>
               <span
-                className={`inline-flex mt-2 px-2.5 py-1 rounded-md text-xs font-semibold border ${bookingStatusMeta(selectedBooking.status).bg} ${bookingStatusMeta(selectedBooking.status).border} ${bookingStatusMeta(selectedBooking.status).text}`}
+                className={`inline-flex items-center whitespace-nowrap mt-2 px-2.5 py-1 rounded-md text-xs font-semibold border ${bookingStatusMeta(selectedBooking.status).bg} ${bookingStatusMeta(selectedBooking.status).border} ${bookingStatusMeta(selectedBooking.status).text}`}
               >
                 {bookingStatusMeta(selectedBooking.status).label}
               </span>
