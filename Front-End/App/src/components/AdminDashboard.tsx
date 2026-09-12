@@ -27,7 +27,7 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-sm">
                 <User className="w-5 h-5" />
-                <span>{user?.name}</span>
+                <span>{user?.name || 'Admin'}</span>
               </div>
               <button
                 onClick={logout}

@@ -6,7 +6,7 @@ import UserDashboard from './components/UserDashboard';
 import AdminDashboard from './components/AdminDashboard';
 
 function AppContent() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [showLanding, setShowLanding] = useState(true);
 
   // Check if user has visited before

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -24,6 +24,8 @@ interface RawBooking {
   id: number;
   carId: number;
   userId: number;
+  userName?: string;
+  carName?: string;
   startDate: string; // "YYYY-MM-DD"
   endDate: string;   // "YYYY-MM-DD"
   status: string;
@@ -48,6 +50,8 @@ export default function AdminSchedule() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [actionBusy, setActionBusy] = useState(false);
 
+  const isMounted = useRef(true);
+
   const load = async () => {
     setLoading(true);
     setError(null);
@@ -56,18 +60,26 @@ export default function AdminSchedule() {
         getAllCars(),
         getAllBookings(),
       ]);
-      setCars(carsData);
-      setBookings(bookingsData);
+      if (!isMounted.current) return;
+      setCars(Array.isArray(carsData) ? carsData : []);
+      setBookings(Array.isArray(bookingsData) ? bookingsData : []);
     } catch (err) {
+      if (!isMounted.current) return;
       console.error('Failed to load schedule data:', err);
       setError('Gagal memuat data jadwal. Coba muat ulang halaman.');
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
+    isMounted.current = true;
     load();
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
   /* ---------- month math ---------- */
@@ -76,8 +88,7 @@ export default function AdminSchedule() {
   const todayISO = toISODate(today);
 
   const viewDate = useMemo(() => {
-    const base = new Date(today.getFullYear(), today.getMonth(), 1);
-    return new Date(base.getFullYear(), base.getMonth() + monthOffset, 1);
+    return new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthOffset]);
 
@@ -103,9 +114,15 @@ export default function AdminSchedule() {
 
   /* ---------- "today" summary (independent of the month being viewed) ---------- */
 
-  const pickupsToday = bookings.filter(b => b.startDate === todayISO && b.status === 'CONFIRMED').length;
-  const returnsToday = bookings.filter(b => b.endDate === todayISO && b.status === 'CONFIRMED').length;
-  const waitingConfirmation = bookings.filter(b => b.status === 'WAITING_CONFIRMATION').length;
+  const pickupsToday = bookings.filter(
+    b => b.startDate?.split('T')[0] === todayISO && b.status === 'CONFIRMED'
+  ).length;
+  const returnsToday = bookings.filter(
+    b => b.endDate?.split('T')[0] === todayISO && b.status === 'CONFIRMED'
+  ).length;
+  const waitingConfirmation = bookings.filter(
+    b => b.status === 'WAITING_CONFIRMATION'
+  ).length;
 
   /* ---------- clip a booking's range to the visible month ---------- */
 
@@ -114,6 +131,8 @@ export default function AdminSchedule() {
     const monthEnd = new Date(year, monthIndex, daysInMonth);
     const start = parseISODate(b.startDate);
     const end = parseISODate(b.endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    if (end < start) return null;
     if (end < monthStart || start > monthEnd) return null;
     const clippedStart = start < monthStart ? monthStart : start;
     const clippedEnd = end > monthEnd ? monthEnd : end;
@@ -123,7 +142,7 @@ export default function AdminSchedule() {
   const carsRendered = useMemo(() => {
     return cars.map(car => {
       const carBookings = bookings
-        .filter(b => b.carId === car.id)
+        .filter(b => Number(b.carId) === Number(car.id))
         .map(b => ({ booking: b, range: clampToMonth(b) }))
         .filter((x): x is { booking: RawBooking; range: { startDay: number; endDay: number } } => x.range !== null)
         .map(({ booking, range }) => {
@@ -138,19 +157,27 @@ export default function AdminSchedule() {
   }, [cars, bookings, year, monthIndex, daysInMonth]);
 
   const selectedBooking = bookings.find(b => b.id === selectedId) ?? null;
-  const selectedCar = selectedBooking ? cars.find(c => c.id === selectedBooking.carId) ?? null : null;
+  const selectedCar = selectedBooking
+    ? cars.find(c => Number(c.id) === Number(selectedBooking.carId)) ?? null
+    : null;
 
   const runAction = async (fn: () => Promise<unknown>) => {
     setActionBusy(true);
     try {
       await fn();
+      if (!isMounted.current) return;
       await load();
-      setSelectedId(null);
+      if (isMounted.current) {
+        setSelectedId(null);
+      }
     } catch (err) {
+      if (!isMounted.current) return;
       console.error('Booking action failed:', err);
       setError('Aksi gagal dijalankan. Coba lagi.');
     } finally {
-      setActionBusy(false);
+      if (isMounted.current) {
+        setActionBusy(false);
+      }
     }
   };
 
@@ -304,13 +331,13 @@ export default function AdminSchedule() {
                     <button
                       key={booking.id}
                       onClick={() => setSelectedId(booking.id)}
-                      title={`Booking #${booking.id} • User #${booking.userId}`}
+                      title={`Booking #${booking.id} • ${booking.userName || `User #${booking.userId}`}`}
                       style={{ position: 'absolute', top: 10, bottom: 10, left, width }}
                       className={`rounded-lg border-[1.5px] px-2.5 flex items-center text-xs font-semibold overflow-hidden whitespace-nowrap text-ellipsis hover:shadow-md hover:-translate-y-px transition-all ${meta.bg} ${meta.border} ${meta.text} ${
                         booking.status === 'CANCELLED' ? 'opacity-60 line-through' : ''
                       }`}
                     >
-                      User #{booking.userId}
+                      {booking.userName || `User #${booking.userId}`}
                     </button>
                   ))}
                 </div>
@@ -329,7 +356,7 @@ export default function AdminSchedule() {
           />
           <div className="fixed top-0 right-0 h-full w-full max-w-[380px] bg-white shadow-2xl z-50 p-6 flex flex-col gap-4 overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-gray-900">Detail Booking</h3>
+              <h3 className="text-gray-900 font-semibold">Detail Booking</h3>
               <button
                 onClick={() => setSelectedId(null)}
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"
@@ -340,7 +367,7 @@ export default function AdminSchedule() {
 
             <div>
               <div className="text-sm font-medium text-gray-900">
-                {selectedCar ? selectedCar.namaMobil : `Mobil #${selectedBooking.carId}`}
+                {selectedBooking.carName || (selectedCar ? selectedCar.namaMobil : `Mobil #${selectedBooking.carId}`)}
               </div>
               <span
                 className={`inline-flex mt-2 px-2.5 py-1 rounded-md text-xs font-semibold border ${bookingStatusMeta(selectedBooking.status).bg} ${bookingStatusMeta(selectedBooking.status).border} ${bookingStatusMeta(selectedBooking.status).text}`}
@@ -354,7 +381,9 @@ export default function AdminSchedule() {
             <div className="flex flex-col gap-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Penyewa</span>
-                <span className="text-gray-900 font-medium">User #{selectedBooking.userId}</span>
+                <span className="text-gray-900 font-medium">
+                  {selectedBooking.userName || `User #${selectedBooking.userId}`}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-500">Tanggal</span>
@@ -365,7 +394,7 @@ export default function AdminSchedule() {
               <div className="flex justify-between pt-2 border-t border-gray-100">
                 <span className="text-gray-500">Total</span>
                 <span className="text-[#023EBA] font-semibold">
-                  Rp {selectedBooking.totalPrice.toLocaleString('id-ID')}
+                  Rp {(selectedBooking.totalPrice || 0).toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
@@ -376,14 +405,14 @@ export default function AdminSchedule() {
                   <button
                     disabled={actionBusy}
                     onClick={() => runAction(() => approveBooking(String(selectedBooking.id)))}
-                    className="flex-1 py-2 rounded-lg bg-green-600 text-white text-sm font-medium disabled:opacity-50"
+                    className="flex-1 py-2 rounded-lg bg-green-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-green-700 transition-colors"
                   >
                     Konfirmasi
                   </button>
                   <button
                     disabled={actionBusy}
                     onClick={() => runAction(() => cancelBooking(String(selectedBooking.id)))}
-                    className="flex-1 py-2 rounded-lg border border-red-500 text-red-600 text-sm font-medium disabled:opacity-50"
+                    className="flex-1 py-2 rounded-lg border border-red-500 text-red-600 text-sm font-medium disabled:opacity-50 hover:bg-red-50 transition-colors"
                   >
                     Batalkan
                   </button>
@@ -394,14 +423,14 @@ export default function AdminSchedule() {
                   <button
                     disabled={actionBusy}
                     onClick={() => runAction(() => markBookingAsCompleted(String(selectedBooking.id)))}
-                    className="flex-1 py-2 rounded-lg bg-[#023EBA] text-white text-sm font-medium disabled:opacity-50"
+                    className="flex-1 py-2 rounded-lg bg-[#023EBA] text-white text-sm font-medium disabled:opacity-50 hover:bg-blue-800 transition-colors"
                   >
                     Tandai Selesai
                   </button>
                   <button
                     disabled={actionBusy}
                     onClick={() => runAction(() => cancelBooking(String(selectedBooking.id)))}
-                    className="flex-1 py-2 rounded-lg border border-red-500 text-red-600 text-sm font-medium disabled:opacity-50"
+                    className="flex-1 py-2 rounded-lg border border-red-500 text-red-600 text-sm font-medium disabled:opacity-50 hover:bg-red-50 transition-colors"
                   >
                     Batalkan
                   </button>
@@ -410,7 +439,7 @@ export default function AdminSchedule() {
               {(selectedBooking.status === 'COMPLETED' || selectedBooking.status === 'CANCELLED' || selectedBooking.status === 'REFUNDED') && (
                 <button
                   onClick={() => setSelectedId(null)}
-                  className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium"
+                  className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
                 >
                   Tutup
                 </button>

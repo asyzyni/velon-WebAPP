@@ -18,13 +18,11 @@ interface RawBooking {
   totalPrice: number;
 }
 
-function initials(name: string) {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map(w => w[0]?.toUpperCase())
-    .join('');
+function initials(name?: string) {
+  if (!name || typeof name !== 'string') return 'A';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'A';
+  return parts.slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || 'A';
 }
 
 export default function AdminOverview() {
@@ -35,20 +33,29 @@ export default function AdminOverview() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     (async () => {
       setLoading(true);
       setError(null);
       try {
         const [carsData, bookingsData] = await Promise.all([getAllCars(), getAllBookings()]);
-        setCars(carsData);
-        setBookings(bookingsData);
+        if (!isMounted) return;
+        setCars(Array.isArray(carsData) ? carsData : []);
+        setBookings(Array.isArray(bookingsData) ? bookingsData : []);
       } catch (err) {
+        if (!isMounted) return;
         console.error('Failed to load dashboard overview:', err);
         setError('Gagal memuat data dashboard.');
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     })();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const today = new Date();
@@ -65,8 +72,9 @@ export default function AdminOverview() {
       if (b.status !== 'CONFIRMED') return;
       const start = parseISODate(b.startDate);
       const end = parseISODate(b.endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
       const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      if (now >= start && now <= end) ids.add(b.carId);
+      if (now >= start && now <= end) ids.add(Number(b.carId));
     });
     return ids;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,7 +83,7 @@ export default function AdminOverview() {
   const totalMobil = cars.length;
   const sedangDisewa = rentedCarIds.size;
   const mobilTersedia = cars.filter(
-    c => (!c.status || c.status.toUpperCase() === 'AVAILABLE') && !rentedCarIds.has(c.id)
+    c => (!c.status || c.status.toUpperCase() === 'AVAILABLE') && !rentedCarIds.has(Number(c.id))
   ).length;
   const totalBooking = bookings.length;
 
@@ -93,9 +101,10 @@ export default function AdminOverview() {
       .filter(b => (b.status === 'CONFIRMED' || b.status === 'COMPLETED'))
       .filter(b => {
         const d = parseISODate(b.startDate);
+        if (isNaN(d.getTime())) return false;
         return d.getFullYear() === yearArg && d.getMonth() === monthIndex;
       })
-      .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+      .reduce((sum, b) => sum + (Number(b.totalPrice) || 0), 0);
 
   const thisMonthRevenue = revenueByMonth(today.getFullYear(), today.getMonth());
   const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -105,6 +114,7 @@ export default function AdminOverview() {
 
   const recentBookings = useMemo(() => {
     return [...bookings]
+      .filter(b => !isNaN(parseISODate(b.startDate).getTime()))
       .sort((a, b) => parseISODate(b.startDate).getTime() - parseISODate(a.startDate).getTime())
       .slice(0, 8);
   }, [bookings]);
@@ -164,12 +174,12 @@ export default function AdminOverview() {
                   </thead>
                   <tbody>
                     {recentBookings.map((b, idx) => {
-                      const car = carsById.get(b.carId);
+                      const car = carsById.get(Number(b.carId));
                       const meta = bookingStatusMeta(b.status);
                       return (
                         <tr key={b.id} className="border-b border-gray-50 last:border-0">
                           <td className="py-3 pr-4 text-gray-500">{idx + 1}</td>
-                          <td className="py-3 pr-4 text-gray-900">
+                          <td className="py-3 pr-4 text-gray-900 font-medium">
                             {b.userName || `User #${b.userId}`}
                           </td>
                           <td className="py-3 pr-4 text-gray-700">
@@ -195,10 +205,10 @@ export default function AdminOverview() {
         <div className="flex flex-col gap-6">
           <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center">
             <div className="w-16 h-16 rounded-full bg-[#023EBA] text-white flex items-center justify-center text-lg font-semibold mb-3">
-              {user?.name ? initials(user.name) : 'A'}
+              {initials(user?.name)}
             </div>
-            <p className="text-gray-900">{user?.name || 'Admin'}</p>
-            <p className="text-sm text-gray-500">{user?.email}</p>
+            <p className="text-gray-900 font-medium">{user?.name || 'Admin'}</p>
+            <p className="text-sm text-gray-500">{user?.email || '-'}</p>
             <span className="mt-2 px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 uppercase">
               {user?.role || 'admin'}
             </span>
@@ -206,8 +216,8 @@ export default function AdminOverview() {
 
           <div className="bg-white rounded-xl shadow-md p-6">
             <p className="text-gray-500 text-sm mb-1">Pendapatan Bulan Ini</p>
-            <p className="text-2xl text-gray-900 mb-1">
-              Rp {thisMonthRevenue.toLocaleString('id-ID')}
+            <p className="text-2xl text-gray-900 font-semibold mb-1">
+              Rp {(thisMonthRevenue || 0).toLocaleString('id-ID')}
             </p>
             {revenueDeltaPct !== null ? (
               <div className={`flex items-center gap-1 text-xs ${revenueDeltaPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>

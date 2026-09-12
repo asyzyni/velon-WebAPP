@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Users, Fuel, Settings } from 'lucide-react';
 import BookingModal from './BookingModal';
-import { getAllCars } from '../api/carApi';
+import { getAllCars, type Car as BackendCar } from '../api/carApi';
 
 interface Car {
   id: string;
