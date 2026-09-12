@@ -34,3 +34,8 @@ node_modules/
 # Java
 # ===============================
 *.class
+
+# ===============================
+# Credentials / Testing Docs
+# ===============================
+TEST_ACCOUNTS.md

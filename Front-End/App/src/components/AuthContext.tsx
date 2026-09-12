@@ -10,7 +10,7 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   register: (name: string, email: string, password: string) => Promise<boolean>;
 }
@@ -27,19 +27,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const userData = await loginApi(email, password);
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPassword = password.trim();
+      const userData = await loginApi(cleanEmail, cleanPassword);
       const userWithStringRole: User = {
         ...userData,
         role: userData.role?.toLowerCase() || 'user',
       };
       setUser(userWithStringRole);
       localStorage.setItem('velon_user', JSON.stringify(userWithStringRole));
-      return true;
-    } catch (error) {
+      return { success: true };
+    } catch (error: any) {
       console.error('Login error:', error);
-      return false;
+      let errorMsg = 'Email atau password salah';
+      if (error?.code === 'ERR_NETWORK' || !error?.response) {
+        errorMsg = 'Tidak dapat terhubung ke server backend (port 8081). Pastikan backend aktif.';
+      } else if (typeof error.response?.data === 'string') {
+        if (error.response.data.includes('User not found')) {
+          errorMsg = 'Email tidak ditemukan di database';
+        } else if (error.response.data.includes('Wrong password')) {
+          errorMsg = 'Password salah';
+        } else {
+          errorMsg = error.response.data;
+        }
+      }
+      return { success: false, error: errorMsg };
     }
   };
 
