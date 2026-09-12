@@ -12,14 +12,16 @@ interface Car {
 
 interface BookingModalProps {
   car: Car;
+  initialStartDate?: string;
+  initialEndDate?: string;
   onClose: () => void;
 }
 
-export default function BookingModal({ car, onClose }: BookingModalProps) {
+export default function BookingModal({ car, initialStartDate = '', initialEndDate = '', onClose }: BookingModalProps) {
   const { user } = useAuth();
 
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(initialStartDate);
+  const [endDate, setEndDate] = useState(initialEndDate);
   const [pickupLocation, setPickupLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +31,8 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
     const start = new Date(startDate);
     const end = new Date(endDate);
     const diffTime = end.getTime() - start.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffTime < 0) return 0;
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays > 0 ? diffDays : 1;
   };
 
@@ -44,23 +47,25 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
       return;
     }
 
+    if (totalDays <= 0) {
+      alert('Tanggal selesai sewa tidak boleh sebelum tanggal mulai');
+      return;
+    }
+
     const bookingPayload = {
-      userId: Number(user.id),     //  WAJIB
-      carId: Number(car.id),       //  WAJIB
-      startDate,                   // YYYY-MM-DD
-      endDate,                     // YYYY-MM-DD
+      userId: Number(user.id),
+      carId: Number(car.id),
+      startDate,
+      endDate,
       pickupLocation,
       notes,
     };
-
-    console.log('BOOKING PAYLOAD:', bookingPayload);
 
     try {
       setLoading(true);
 
       const result = await createBooking(bookingPayload);
 
-      // Optional: simpan ke localStorage buat BookingHistory FE
       const localBooking = {
         id: result.id,
         userId: user.id,
@@ -73,7 +78,7 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
         notes,
         totalDays,
         pricePerDay: car.pricePerDay,
-        totalPrice,
+        totalPrice: result.totalPrice || totalPrice,
         status: 'WAITING_PAYMENT',
         createdAt: new Date().toISOString(),
       };
@@ -90,9 +95,12 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
       alert('Pemesanan berhasil! Silakan lanjutkan pembayaran.');
       onClose();
 
-    } catch (error) {
-      console.error('Booking error:', error);
-      alert('Gagal membuat pemesanan. Silakan coba lagi.');
+    } catch (error: any) {
+      const backendMsg = error?.response?.data;
+      const message = typeof backendMsg === 'string'
+        ? backendMsg
+        : (error?.message || 'Gagal membuat pemesanan. Silakan coba lagi.');
+      alert(message);
     } finally {
       setLoading(false);
     }
@@ -103,7 +111,7 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="text-gray-900">Pemesanan Mobil</h2>
+          <h2 className="text-gray-900 font-semibold">Pemesanan Mobil</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-6 h-6" />
           </button>
@@ -118,8 +126,8 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
               className="w-24 h-24 object-cover rounded-lg"
             />
             <div>
-              <h3 className="text-gray-900 mb-1">{car.name}</h3>
-              <p className="text-[#023EBA]">
+              <h3 className="text-gray-900 font-medium mb-1">{car.name}</h3>
+              <p className="text-[#023EBA] font-semibold">
                 Rp {car.pricePerDay.toLocaleString('id-ID')} / hari
               </p>
             </div>
@@ -187,13 +195,13 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
           {/* Summary */}
           {totalDays > 0 && (
             <div className="p-4 bg-blue-50 rounded-lg border mb-4">
-              <div className="flex justify-between">
-                <span>Durasi</span>
-                <span>{totalDays} hari</span>
+              <div className="flex justify-between mb-1">
+                <span className="text-gray-600">Durasi</span>
+                <span className="font-medium">{totalDays} hari</span>
               </div>
               <div className="flex justify-between">
-                <span>Total Harga</span>
-                <span className="text-[#023EBA]">
+                <span className="text-gray-600">Total Harga</span>
+                <span className="text-[#023EBA] font-bold">
                   Rp {totalPrice.toLocaleString('id-ID')}
                 </span>
               </div>
@@ -205,14 +213,14 @@ export default function BookingModal({ car, onClose }: BookingModalProps) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 border px-6 py-3 rounded-lg"
+              className="flex-1 border border-gray-300 hover:bg-gray-50 px-6 py-3 rounded-lg"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-gradient-to-r from-[#023EBA] to-gray-700 text-white px-6 py-3 rounded-lg"
+              className="flex-1 bg-gradient-to-r from-[#023EBA] to-gray-700 hover:opacity-90 text-white font-medium px-6 py-3 rounded-lg transition-opacity disabled:opacity-50"
             >
               {loading ? 'Memproses...' : 'Konfirmasi Pemesanan'}
             </button>

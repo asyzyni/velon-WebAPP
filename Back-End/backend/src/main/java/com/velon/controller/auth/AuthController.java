@@ -1,9 +1,12 @@
 package com.velon.controller.auth;
 
 import com.velon.controller.base.BaseController;
-import com.velon.dao.UserDAO;
-import com.velon.model.entity.User;
 import com.velon.model.dto.LoginRequest;
+import com.velon.model.dto.RegisterRequest;
+import com.velon.model.entity.User;
+import com.velon.service.AuthService;
+import com.velon.service.SessionService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,29 +17,30 @@ import java.util.Map;
 @RequestMapping("/auth")
 public class AuthController extends BaseController {
 
-    private final UserDAO userDAO;
+    private final AuthService authService;
+    private final SessionService sessionService;
 
-    public AuthController(UserDAO userDAO) {
-        this.userDAO = userDAO;
+    public AuthController(AuthService authService, SessionService sessionService) {
+        this.authService = authService;
+        this.sessionService = sessionService;
     }
 
     // =====================
     // REGISTER
     // =====================
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody User user) {
+    public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
 
-        if (user.getEmail() == null || user.getPassword() == null) {
-            return ResponseEntity.badRequest().body("Email & password required");
+        if (req.getEmail() == null || req.getPassword() == null || req.getName() == null) {
+            return bad("Name, email & password required");
         }
 
-        // default role USER kalau kosong
-        if (user.getRole() == null) {
-            user.setRole("USER");
+        try {
+            authService.register(req.getName(), req.getEmail(), req.getPassword(), req.getRole());
+            return ok("REGISTER SUCCESS");
+        } catch (IllegalArgumentException e) {
+            return bad(e.getMessage());
         }
-
-        userDAO.register(user);
-        return ResponseEntity.ok("REGISTER SUCCESS");
     }
 
     // =====================
@@ -46,26 +50,24 @@ public class AuthController extends BaseController {
     public ResponseEntity<?> login(@RequestBody LoginRequest req) {
 
         if (req.getEmail() == null || req.getPassword() == null) {
-            return ResponseEntity.badRequest().body("Email & password required");
+            return bad("Email & password required");
         }
 
-        User user = userDAO.findByEmail(req.getEmail());
+        try {
+            User user = authService.login(req.getEmail(), req.getPassword());
+            String token = sessionService.createSession(user);
 
-        if (user == null) {
-            return ResponseEntity.status(401).body("User not found");
+            // RESPONSE AMAN (PASSWORD TIDAK DIKIRIM)
+            Map<String, Object> res = new HashMap<>();
+            res.put("id", user.getId());
+            res.put("name", user.getName());
+            res.put("email", user.getEmail());
+            res.put("role", user.getRole());
+            res.put("token", token);
+
+            return ok(res);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
-
-        if (!user.getPassword().equals(req.getPassword())) {
-            return ResponseEntity.status(401).body("Wrong password");
-        }
-
-        // RESPONSE AMAN (PASSWORD TIDAK DIKIRIM)
-        Map<String, Object> res = new HashMap<>();
-        res.put("id", user.getId());
-        res.put("name", user.getName());
-        res.put("email", user.getEmail());
-        res.put("role", user.getRole());
-
-        return ResponseEntity.ok(res);
     }
 }

@@ -19,10 +19,26 @@ public interface BookingDAO extends JpaRepository<Booking, Integer> {
 
     @Query(
         "SELECT b FROM Booking b " +
-        "WHERE b.status = com.velon.model.entity.BookingStatus.CONFIRMED " +
+        "WHERE b.status IN (com.velon.model.entity.BookingStatus.CONFIRMED, " +
+        "                   com.velon.model.entity.BookingStatus.WAITING_PAYMENT, " +
+        "                   com.velon.model.entity.BookingStatus.WAITING_CONFIRMATION) " +
         "AND (b.startDate <= :endDate AND b.endDate >= :startDate)"
     )
     List<Booking> findConfirmedBookingInRange(
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate
+    );
+
+    @Query(
+        "SELECT b FROM Booking b " +
+        "WHERE b.carId = :carId " +
+        "AND b.status IN (com.velon.model.entity.BookingStatus.CONFIRMED, " +
+        "                   com.velon.model.entity.BookingStatus.WAITING_PAYMENT, " +
+        "                   com.velon.model.entity.BookingStatus.WAITING_CONFIRMATION) " +
+        "AND (b.startDate <= :endDate AND b.endDate >= :startDate)"
+    )
+    List<Booking> findBlockingBookingsForCar(
+            @Param("carId") Integer carId,
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate
     );

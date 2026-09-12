@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { loginApi, registerApi } from '../api/authApi';
 
 interface User {
@@ -6,6 +7,7 @@ interface User {
   name: string;
   email: string;
   role: string;
+  token?: string;
 }
 
 interface AuthContextType {
@@ -23,7 +25,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedUser = localStorage.getItem('velon_user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem('velon_user');
+      }
     }
   }, []);
 
@@ -33,12 +39,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userWithStringRole: User = {
         ...userData,
         role: userData.role?.toLowerCase() || 'user',
+        token: userData.token,
       };
       setUser(userWithStringRole);
       localStorage.setItem('velon_user', JSON.stringify(userWithStringRole));
       return true;
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch {
       return false;
     }
   };
@@ -52,8 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await registerApi(name, email, password);
       return true;
-    } catch (error) {
-      console.error('Register error:', error);
+    } catch {
       return false;
     }
   };

@@ -16,9 +16,6 @@ import java.util.Map;
 
 import javax.annotation.PostConstruct;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
-
-@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/admin/bookings")
 public class AdminBookingController {

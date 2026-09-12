@@ -69,11 +69,9 @@ export default function BookingHistory({ onPayment, refreshKey }: Props) {
         return res.json();
       })
       .then(data => {
-        console.log("BOOKINGS FROM BACKEND:", data);
         setBookings(data);
       })
-      .catch(err => {
-        console.error("LOAD BOOKINGS ERROR:", err);
+      .catch(() => {
       });
   }, [user?.id, refreshKey]);
 

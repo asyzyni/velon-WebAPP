@@ -48,6 +48,14 @@ public class Car {
 
     public void setJenis(String jenisMobil) {
         this.jenisMobil = jenisMobil; 
+    }
+
+    public String getJenisMobil() {
+        return jenisMobil;
+    }
+
+    public void setJenisMobil(String jenisMobil) {
+        this.jenisMobil = jenisMobil;
     } 
 
     public Integer getHargaPerHari() {

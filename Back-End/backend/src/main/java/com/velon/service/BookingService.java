@@ -86,18 +86,4 @@ public class BookingService {
     public List<Booking> getBookingHistoryByUserId(Integer userId) {
         return bookingDAO.findByUserIdOrderByStartDateDesc(userId);
     }
-
-    // calculate price 
-    public int calculateTotalPrice(
-        Integer carId,
-        LocalDate startDate,
-        LocalDate endDate
-    ) {
-        long days = ChronoUnit.DAYS.between(startDate, endDate);
-        int pricePerDay = 300000; // sementara
-        return (int) days * pricePerDay;
-    }
-
-
-
 }

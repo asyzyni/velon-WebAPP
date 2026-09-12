@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
-import { Car, LogOut, User, LayoutDashboard, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { Car, LogOut, User, LayoutDashboard, Calendar, CheckCircle } from 'lucide-react';
 import AdminBookings from './AdminBookings';
 
 type Page = 'dashboard' | 'bookings';

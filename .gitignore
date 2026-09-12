@@ -34,3 +34,11 @@ node_modules/
 # Java
 # ===============================
 *.class
+
+# ===============================
+# Uploads
+# ===============================
+uploads/*
+!uploads/.gitkeep
+Back-End/backend/uploads/*
+!Back-End/backend/uploads/.gitkeep

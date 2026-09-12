@@ -8,8 +8,11 @@ import com.velon.model.entity.Booking;
 import com.velon.model.entity.BookingStatus;
 import com.velon.model.entity.Car;
 import com.velon.service.BookingService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/bookings")
@@ -18,18 +21,15 @@ public class BookingRescheduleController extends BaseController {
     private final BookingDAO bookingDAO;
     private final BookingService bookingService;
     private final CarDAO carDAO;
-    private final ObjectMapper objectMapper;
 
     public BookingRescheduleController(
             BookingDAO bookingDAO,
             BookingService bookingService,
-            CarDAO carDAO,
-            ObjectMapper objectMapper
+            CarDAO carDAO
     ) {
         this.bookingDAO = bookingDAO;
         this.bookingService = bookingService;
         this.carDAO = carDAO;
-        this.objectMapper = objectMapper;
     }
 
     @PutMapping("/{id}/reschedule")
@@ -37,9 +37,6 @@ public class BookingRescheduleController extends BaseController {
             @PathVariable Integer id,
             @RequestBody RescheduleRequest req
     ) {
-
-        System.out.println("🔥 RESCHEDULE HIT ID = " + id);
-
         Booking booking = bookingDAO.findById(id)
                 .orElseThrow(() -> new RuntimeException("Booking not found"));
 
@@ -50,13 +47,25 @@ public class BookingRescheduleController extends BaseController {
         bookingService.validateBooking(req.getStartDate());
         bookingService.validateDate(req.getStartDate(), req.getEndDate());
 
+        // Check availability excluding current booking
+        List<Booking> overlapping = bookingDAO.findBlockingBookingsForCar(
+                booking.getCarId(),
+                req.getStartDate(),
+                req.getEndDate()
+        );
+        boolean hasConflict = overlapping.stream().anyMatch(b -> !b.getId().equals(booking.getId()));
+        if (hasConflict) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body("Mobil tidak tersedia pada rentang tanggal yang dipilih");
+        }
+
         Car car = carDAO.findById(booking.getCarId())
                 .orElseThrow(() -> new RuntimeException("Car not found"));
 
         int newPrice = bookingService.calculateTotalPrice(
-                booking.getCarId(),
                 req.getStartDate(),
-                req.getEndDate()
+                req.getEndDate(),
+                car.getHargaPerHari()
         );
 
         booking.setStartDate(req.getStartDate());

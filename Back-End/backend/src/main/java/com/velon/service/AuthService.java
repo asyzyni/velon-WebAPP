@@ -1,51 +1,47 @@
 package com.velon.service;
 
-import org.springframework.stereotype.Service;
 import com.velon.dao.UserDAO;
 import com.velon.model.entity.User;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
 
     private final UserDAO userDAO;
+    private final PasswordEncoder passwordEncoder;
 
-    public AuthService(UserDAO userDAO) {
+    public AuthService(UserDAO userDAO, PasswordEncoder passwordEncoder) {
         this.userDAO = userDAO;
+        this.passwordEncoder = passwordEncoder;
     }
 
     // ========================
     // REGISTER
     // ========================
-    public User register(String name, String email, String password) {
-
-        // cek email sudah ada
-        User existing = userDAO.findByEmail(email);
-        if (existing != null) {
-            throw new RuntimeException("Email already registered");
+    public User register(String name, String email, String password, String role) {
+        if (userDAO.existsByEmail(email)) {
+            throw new IllegalArgumentException("Email already registered");
         }
 
         User newUser = new User();
         newUser.setName(name);
         newUser.setEmail(email);
-        newUser.setPassword(password); // NOTE: plain dulu
+        newUser.setPassword(passwordEncoder.encode(password));
+        newUser.setRole(role != null && !role.trim().isEmpty() ? role.toUpperCase() : "USER");
 
-        userDAO.register(newUser);
-        return newUser;
+        return userDAO.save(newUser);
     }
 
     // ========================
     // LOGIN
     // ========================
     public User login(String email, String password) {
+        User user = userDAO.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        User user = userDAO.findByEmail(email);
-
-        if (user == null) {
-            throw new RuntimeException("User not found");
-        }
-
-        if (!user.getPassword().equals(password)) {
-            throw new RuntimeException("Wrong password");
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new IllegalArgumentException("Wrong password");
         }
 
         return user;

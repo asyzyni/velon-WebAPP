@@ -33,4 +33,9 @@ public class AppConfig {
     DataSource dataSource() {
         return new DataSourceSpy(realDataSource());
     }
+
+    @Bean
+    public org.springframework.security.crypto.password.PasswordEncoder passwordEncoder() {
+        return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+    }
 }

@@ -19,7 +19,6 @@ public class BookingHistoryController extends BaseController {
 
     @GetMapping("/history/{userId}")
     public Object history(@PathVariable Integer userId) {
-        System.out.println(" BOOKING HISTORY HIT USER ID = " + userId);
         List<Booking> bookings =
                 bookingDAO.findByUserIdOrderByStartDateDesc(userId);
         return ok(bookings);

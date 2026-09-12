@@ -46,39 +46,29 @@ export default function PaymentModal({ bookingId, onClose }: PaymentModalProps) 
     const [error, setError] = useState<string>('');
 
     useEffect(() => {
-        console.log('=== PAYMENT MODAL OPENED ===');
-        console.log('Booking ID:', bookingId);
-
         // Fetch booking details
         fetch(`http://localhost:8081/bookings/${bookingId}`)
             .then(res => {
-                console.log('Booking response status:', res.status);
                 if (!res.ok) {
                     throw new Error(`Failed to fetch booking: ${res.status}`);
                 }
                 return res.json();
             })
             .then(data => {
-                console.log('✅ Booking data received:', data);
                 setBooking(data);
-
                 // Fetch car details
-                console.log('Fetching car with ID:', data.carId);
                 return fetch(`http://localhost:8081/cars/${data.carId}`);
             })
             .then(res => {
-                console.log('Car response status:', res.status);
                 if (!res.ok) {
                     throw new Error(`Failed to fetch car: ${res.status}`);
                 }
                 return res.json();
             })
             .then(carData => {
-                console.log('✅ Car data received:', carData);
                 setCar(carData);
             })
             .catch(err => {
-                console.error('❌ Error fetching data:', err);
                 setError(err.message || 'Gagal memuat data');
             });
     }, [bookingId]);

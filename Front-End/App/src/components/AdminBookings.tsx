@@ -253,6 +253,34 @@ export default function AdminBookings() {
           </div>
         ))}
       </div>
+
+      {showProofModal && selectedBooking && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Bukti Pembayaran</h3>
+              <button
+                onClick={() => {
+                  setShowProofModal(false);
+                  setSelectedBooking(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+            {selectedBooking.paymentProof ? (
+              <img
+                src={`http://localhost:8081/uploads/${selectedBooking.paymentProof}`}
+                alt="Bukti Pembayaran"
+                className="w-full max-h-[60vh] object-contain rounded-lg border"
+              />
+            ) : (
+              <p className="text-gray-500">Tidak ada file bukti pembayaran</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

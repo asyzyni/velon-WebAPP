@@ -1,4 +1,4 @@
-import { Car, Shield, Clock, MapPin, Award, Users, Smartphone, CreditCard, CheckCircle } from 'lucide-react';
+import { Car, Shield, Clock, MapPin, Award, Users, CreditCard, CheckCircle } from 'lucide-react';
 
 interface LandingPageProps {
   onGetStarted: () => void;

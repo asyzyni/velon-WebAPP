@@ -9,8 +9,17 @@ export interface Car {
   status: string;
 }
 
+export type BackendCar = Car;
+
 export const getAllCars = async (): Promise<Car[]> => {
   const res = await api.get('/cars');
+  return res.data;
+};
+
+export const searchAvailableCars = async (startDate: string, endDate: string): Promise<Car[]> => {
+  const res = await api.get('/cars/search', {
+    params: { startDate, endDate }
+  });
   return res.data;
 };
 

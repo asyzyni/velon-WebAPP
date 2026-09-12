@@ -4,27 +4,23 @@ import com.velon.controller.base.BaseController;
 import com.velon.dao.BookingDAO;
 import com.velon.model.entity.Booking;
 import com.velon.model.entity.BookingStatus;
-
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
-
-import org.springframework.web.multipart.MultipartFile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
 
-import org.springframework.web.bind.annotation.CrossOrigin;
-
-@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/payments")
 public class PaymentProofController extends BaseController {
+
+    private static final Logger log = LoggerFactory.getLogger(PaymentProofController.class);
 
     private final BookingDAO bookingDAO;
 
@@ -37,34 +33,46 @@ public class PaymentProofController extends BaseController {
             @PathVariable Integer bookingId,
             @RequestParam("file") MultipartFile file) {
         try {
-            System.out.println("📤 UPLOAD PROOF - Booking ID: " + bookingId);
+            if (file == null || file.isEmpty()) {
+                return bad("File must not be empty");
+            }
+
+            String contentType = file.getContentType();
+            String extension;
+            if ("image/jpeg".equalsIgnoreCase(contentType) || "image/jpg".equalsIgnoreCase(contentType)) {
+                extension = ".jpg";
+            } else if ("image/png".equalsIgnoreCase(contentType)) {
+                extension = ".png";
+            } else {
+                return bad("Invalid file type. Only JPEG and PNG images are allowed.");
+            }
 
             // 1. Find booking
             Booking booking = bookingDAO.findById(bookingId).orElse(null);
             if (booking == null) {
-                System.out.println("❌ Booking not found: " + bookingId);
-                return ResponseEntity.badRequest().body("Booking not found");
+                return bad("Booking not found");
             }
 
-            // 2. Save file
-            String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path path = Paths.get("uploads/" + filename);
-            Files.createDirectories(path.getParent());
+            // 2. Save file with sanitized UUID-based filename
+            String filename = UUID.randomUUID().toString() + extension;
+            Path path = Paths.get("uploads", filename);
+            if (path.getParent() != null) {
+                Files.createDirectories(path.getParent());
+            }
             Files.write(path, file.getBytes());
-
-            System.out.println("✅ File saved: " + filename);
 
             // 3. Update booking status
             booking.setStatus(BookingStatus.WAITING_CONFIRMATION);
             bookingDAO.save(booking);
 
-            System.out.println("✅ Booking status updated to WAITING_CONFIRMATION");
-
+            log.info("Payment proof uploaded successfully for bookingId: {}", bookingId);
             return ok("Upload successful. Waiting for admin confirmation.");
 
+        } catch (IOException e) {
+            log.error("Failed to save payment proof file for bookingId: {}", bookingId, e);
+            return ResponseEntity.status(500).body("Upload failed: " + e.getMessage());
         } catch (Exception e) {
-            System.out.println("❌ Upload failed");
-            e.printStackTrace();
+            log.error("Upload error for bookingId: {}", bookingId, e);
             return ResponseEntity.status(500).body("Upload failed: " + e.getMessage());
         }
     }
