@@ -10,6 +10,8 @@ public class BookingResponse {
     private String status;
     private Integer totalPrice;
     private String paymentToken;
+    private String userName;
+    private String carName;
 
     public Integer getId() {
         return id;
@@ -73,5 +75,21 @@ public class BookingResponse {
 
     public void setPaymentToken(String paymentToken) {
         this.paymentToken = paymentToken;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
+    }
+
+    public String getCarName() {
+        return carName;
+    }
+
+    public void setCarName(String carName) {
+        this.carName = carName;
     }
 }

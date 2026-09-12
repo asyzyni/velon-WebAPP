@@ -1,6 +1,11 @@
 package com.velon;
 
+import com.velon.dao.BookingDAO;
+import com.velon.dao.CarDAO;
 import com.velon.dao.UserDAO;
+import com.velon.model.entity.Booking;
+import com.velon.model.entity.BookingStatus;
+import com.velon.model.entity.Car;
 import com.velon.model.entity.User;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
@@ -11,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -27,6 +33,12 @@ public class AuthSecurityTest {
 
     @Autowired
     private UserDAO userDAO;
+
+    @Autowired
+    private CarDAO carDAO;
+
+    @Autowired
+    private BookingDAO bookingDAO;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -186,5 +198,71 @@ public class AuthSecurityTest {
                 .then()
                 .statusCode(200)
                 .body("namaMobil", equalTo("Test Admin Car"));
+    }
+
+    @Test
+    public void testGetAllBookings_ReturnsRenterAndCarNames() {
+        // 1. Create renter user
+        User renter = new User();
+        renter.setName("Budi Santoso " + UUID.randomUUID().toString().substring(0, 5));
+        renter.setEmail("budi_" + UUID.randomUUID().toString().substring(0, 8) + "@velon.com");
+        renter.setPassword(passwordEncoder.encode("Secret123!"));
+        renter.setRole("USER");
+        renter = userDAO.save(renter);
+
+        // 2. Create car
+        Car car = new Car();
+        String carName = "Avanza Veloz " + UUID.randomUUID().toString().substring(0, 5);
+        car.setNamaMobil(carName);
+        car.setJenisMobil("MPV");
+        car.setHargaPerHari(350000);
+        car.setKapasitas(7);
+        car.setStatus("AVAILABLE");
+        car = carDAO.save(car);
+
+        // 3. Create booking
+        Booking booking = new Booking();
+        booking.setUserId(renter.getId());
+        booking.setCarId(car.getId());
+        booking.setStartDate(LocalDate.now().plusDays(10));
+        booking.setEndDate(LocalDate.now().plusDays(12));
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setTotalPrice(700000);
+        booking.setPaymentToken("PAY-" + UUID.randomUUID());
+        booking = bookingDAO.save(booking);
+
+        // 4. Create admin user & get token
+        String adminEmail = "admin_check_" + UUID.randomUUID().toString().substring(0, 8) + "@velon.com";
+        Map<String, String> adminReg = new HashMap<>();
+        adminReg.put("name", "Admin Checker");
+        adminReg.put("email", adminEmail);
+        adminReg.put("password", "AdminPass123!");
+        adminReg.put("role", "ADMIN");
+
+        given().contentType(ContentType.JSON).body(adminReg).when().post("/auth/register").then().statusCode(200);
+
+        Map<String, String> adminLogin = new HashMap<>();
+        adminLogin.put("email", adminEmail);
+        adminLogin.put("password", "AdminPass123!");
+
+        String adminToken = given()
+                .contentType(ContentType.JSON)
+                .body(adminLogin)
+                .when()
+                .post("/auth/login")
+                .then()
+                .statusCode(200)
+                .extract().path("token");
+
+        // 5. Query GET /admin/bookings
+        given()
+                .header("Authorization", "Bearer " + adminToken)
+                .when()
+                .get("/admin/bookings")
+                .then()
+                .statusCode(200)
+                .body("id", hasItem(booking.getId()))
+                .body("find { it.id == " + booking.getId() + " }.userName", equalTo(renter.getName()))
+                .body("find { it.id == " + booking.getId() + " }.carName", equalTo(carName));
     }
 }

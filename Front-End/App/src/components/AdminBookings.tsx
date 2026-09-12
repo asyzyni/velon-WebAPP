@@ -21,6 +21,7 @@ import {
 interface Booking {
   id: string;
   userId: string;
+  userName?: string;
   carId: string;
   carName: string;
   carImage: string;
@@ -94,8 +95,9 @@ export default function AdminBookings() {
       return {
         id: String(b.id),
         userId: String(b.userId),
+        userName: b.userName || undefined,
         carId: String(b.carId),
-        carName: `Mobil ${b.carId}`,
+        carName: b.carName || `Mobil ${b.carId}`,
         carImage: "/car-placeholder.jpg",
         startDate: b.startDate,
         endDate: b.endDate,
@@ -178,7 +180,7 @@ export default function AdminBookings() {
               <div>
                 <h3 className="text-gray-900">{b.carName}</h3>
                 <p className="text-sm text-gray-500">
-                  Booking ID: {b.id} | User ID: {b.userId}
+                  Booking ID: {b.id} | {b.userName ? `Penyewa: ${b.userName}` : `User ID: ${b.userId}`}
                 </p>
               </div>
 
