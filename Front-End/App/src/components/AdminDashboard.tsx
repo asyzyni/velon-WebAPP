@@ -1,20 +1,15 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
-import { Car, LogOut, User, LayoutDashboard, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { Car, LogOut, User, LayoutDashboard, Calendar, LayoutGrid } from 'lucide-react';
 import AdminBookings from './AdminBookings';
+import AdminSchedule from './AdminSchedule';
+import AdminOverview from './AdminOverview';
 
-type Page = 'dashboard' | 'bookings';
+type Page = 'dashboard' | 'bookings' | 'schedule';
 
 export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState<Page>('dashboard');
   const { user, logout } = useAuth();
-
-  const stats = [
-    { label: 'Total Mobil', value: '6', icon: Car, color: 'bg-blue-500' },
-    { label: 'Mobil Tersedia', value: '5', icon: CheckCircle, color: 'bg-green-500' },
-    { label: 'Sedang Disewa', value: '1', icon: Calendar, color: 'bg-yellow-500' },
-    { label: 'Total Booking', value: '0', icon: User, color: 'bg-purple-500' },
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -72,43 +67,26 @@ export default function AdminDashboard() {
               <Calendar className="w-5 h-5" />
               <span>Kelola Booking</span>
             </button>
+            <button
+              onClick={() => setCurrentPage('schedule')}
+              className={`flex items-center gap-2 px-6 py-4 border-b-2 transition-colors ${
+                currentPage === 'schedule'
+                  ? 'border-[#023EBA] text-[#023EBA]'
+                  : 'border-transparent text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              <LayoutGrid className="w-5 h-5" />
+              <span>Jadwal</span>
+            </button>
           </div>
         </div>
       </nav>
 
       {/* Content */}
       <main className="container mx-auto px-4 py-8">
-        {currentPage === 'dashboard' && (
-          <div>
-            <h2 className="text-gray-900 mb-6">Overview</h2>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {stats.map((stat, index) => (
-                <div key={index} className="bg-white rounded-xl shadow-md p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-gray-500 mb-1">{stat.label}</p>
-                      <p className="text-3xl text-gray-900">{stat.value}</p>
-                    </div>
-                    <div className={`${stat.color} p-3 rounded-lg`}>
-                      <stat.icon className="w-6 h-6 text-white" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h3 className="text-gray-900 mb-4">Selamat Datang, Admin!</h3>
-              <p className="text-gray-600">
-                Gunakan menu navigasi di atas untuk mengelola sistem rental mobil Velon. 
-                Anda dapat melihat dan mengelola semua booking yang masuk dari pelanggan.
-              </p>
-            </div>
-          </div>
-        )}
-
+        {currentPage === 'dashboard' && <AdminOverview />}
         {currentPage === 'bookings' && <AdminBookings />}
+        {currentPage === 'schedule' && <AdminSchedule />}
       </main>
     </div>
   );
