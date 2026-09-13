@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
-import { Car, Lock, Mail, User, ArrowLeft } from 'lucide-react';
+import { Lock, Mail, User, ArrowLeft } from 'lucide-react';
+import Logo from './Logo';
 
 interface LoginProps {
   onBack?: () => void;
@@ -71,12 +72,9 @@ export default function Login({ onBack }: LoginProps) {
 
           {/* Header */}
           <div className="bg-gradient-to-r from-[#023EBA] to-gray-700 p-8 text-white text-center">
-            <div className="flex justify-center mb-4">
-              <div className="bg-white/20 p-4 rounded-full">
-                <Car className="w-12 h-12" />
-              </div>
+            <div className="flex justify-center mb-3">
+              <Logo tone="reversed" size={40} />
             </div>
-            <h1 className="text-3xl mb-2">Velon</h1>
             <p className="text-blue-100">Rental Mobil Terpercaya</p>
           </div>
 

@@ -1,4 +1,5 @@
 import { Car, Shield, Clock, MapPin, Award, Users, Smartphone, CreditCard, CheckCircle } from 'lucide-react';
+import Logo from './Logo';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -12,11 +13,9 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="container mx-auto px-4 py-20">
           <div className="max-w-4xl mx-auto text-center">
             <div className="flex justify-center mb-6">
-              <div className="bg-white/20 p-6 rounded-full backdrop-blur-sm">
-                <Car className="w-16 h-16" />
-              </div>
+              <Logo tone="reversed" size={52} />
             </div>
-            <h1 className="text-5xl mb-6">Selamat Datang di Velon</h1>
+            <h1 className="text-5xl mb-6">Selamat Datang</h1>
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
               Solusi rental mobil terpercaya dengan harga terbaik, pelayanan prima, 
               dan kemudahan pemesanan yang dapat diandalkan untuk perjalanan Anda
@@ -270,8 +269,8 @@ export default function LandingPage({ onGetStarted }: LandingPageProps) {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center gap-2 mb-4 md:mb-0">
-              <Car className="w-6 h-6" />
-              <span className="text-xl">Velon Rental</span>
+              <Logo tone="reversed" size={22} />
+              <span className="text-sm text-gray-300">Rental</span>
             </div>
             <p className="text-gray-400 text-sm">
               © 2025 Velon. Semua hak dilindungi.

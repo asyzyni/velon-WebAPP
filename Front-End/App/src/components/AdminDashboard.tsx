@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
-import { Car, LogOut, User, LayoutDashboard, Calendar, LayoutGrid } from 'lucide-react';
+import { LogOut, User, LayoutDashboard, Calendar, LayoutGrid } from 'lucide-react';
 import AdminBookings from './AdminBookings';
 import AdminSchedule from './AdminSchedule';
 import AdminOverview from './AdminOverview';
+import Logo from './Logo';
 
 type Page = 'dashboard' | 'bookings' | 'schedule';
 
@@ -18,10 +19,11 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Car className="w-8 h-8" />
+              <Logo tone="reversed" size={26} />
+              <div className="h-6 w-px bg-white/30" />
               <div>
-                <h1 className="text-2xl">Velon Admin</h1>
-                <p className="text-sm text-indigo-100">Dashboard Administrator</p>
+                <p className="text-sm leading-tight">Admin</p>
+                <p className="text-xs text-indigo-100 leading-tight">Dashboard Administrator</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
