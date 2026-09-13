@@ -1,59 +1,59 @@
-import { useState, useEffect, useMemo } from 'react';
-import { getAllCars, type Car as CarType } from '../api/carApi';
-import { getAllBookings } from '../api/adminBookingApi';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
-  Car,
-  User,
+  Car as CarIcon,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Clock,
   X,
 } from 'lucide-react';
+import { getAllCars, type Car } from '../api/carApi';
+import {
+  getAllBookings,
+  approveBooking,
+  cancelBooking,
+  markBookingAsCompleted,
+} from '../api/adminBookingApi';
+import { parseISODate, toISODate, formatDateRangeID, MONTHS_ID } from '../lib/date';
+import { BOOKING_STATUS_META, BOOKING_STATUS_ORDER, bookingStatusMeta } from '../lib/bookingStatus';
 
-export interface RawBooking {
+/* ================= TYPES ================= */
+
+interface RawBooking {
   id: number;
   carId: number;
   userId: number;
-  startDate: string;
-  endDate: string;
-  status: string;
-  totalPrice: number;
   userName?: string;
   carName?: string;
-  paymentToken?: string;
+  startDate: string; // "YYYY-MM-DD"
+  endDate: string;   // "YYYY-MM-DD"
+  status: string;
+  totalPrice: number;
+  paymentProof?: string;
 }
 
-export const parseLocalDate = (dateStr: string): Date => {
-  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
-  return new Date(year, month - 1, day);
-};
+/* ================= CONSTANTS ================= */
 
-const formatDateKey = (d: Date): string => {
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+const DOW = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+const DAY_WIDTH = 34;
+const LABEL_WIDTH = 220;
+
+/* ================= COMPONENT ================= */
 
 export default function AdminSchedule() {
-  const [cars, setCars] = useState<CarType[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
   const [bookings, setBookings] = useState<RawBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [monthOffset, setMonthOffset] = useState(0);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [actionBusy, setActionBusy] = useState(false);
 
-  // Calendar window: 14 days starting from startDateOffset
-  const [startDateOffset, setStartDateOffset] = useState<Date>(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    // Start 2 days prior to today for nice context
-    const d = new Date(today);
-    d.setDate(d.getDate() - 2);
-    return d;
-  });
+  const isMounted = useRef(true);
 
-  const [selectedBooking, setSelectedBooking] = useState<RawBooking | null>(null);
-
-  const loadData = async () => {
+  const load = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -61,390 +61,410 @@ export default function AdminSchedule() {
         getAllCars(),
         getAllBookings(),
       ]);
-      setCars(carsData);
-      setBookings(bookingsData);
-    } catch (err: any) {
-      setError(err?.message || 'Gagal memuat jadwal armada');
+      if (!isMounted.current) return;
+      setCars(Array.isArray(carsData) ? carsData : []);
+      setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+    } catch (err) {
+      if (!isMounted.current) return;
+      console.error('Failed to load schedule data:', err);
+      setError('Gagal memuat data jadwal. Coba muat ulang halaman.');
     } finally {
-      setLoading(false);
+      if (isMounted.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadData();
+    isMounted.current = true;
+    load();
+    return () => {
+      isMounted.current = false;
+    };
   }, []);
 
-  const daysToShow = 14;
+  /* ---------- month math ---------- */
 
-  const calendarDays = useMemo(() => {
-    const days: Date[] = [];
-    for (let i = 0; i < daysToShow; i++) {
-      const d = new Date(startDateOffset);
-      d.setDate(d.getDate() + i);
-      days.push(d);
+  const today = new Date();
+  const todayISO = toISODate(today);
+
+  const viewDate = useMemo(() => {
+    return new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthOffset]);
+
+  const year = viewDate.getFullYear();
+  const monthIndex = viewDate.getMonth();
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const firstDow = new Date(year, monthIndex, 1).getDay();
+  const isCurrentMonth = year === today.getFullYear() && monthIndex === today.getMonth();
+
+  const days = useMemo(() => {
+    const arr: { num: number; dow: string; isWeekend: boolean; isToday: boolean }[] = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dow = (firstDow + (d - 1)) % 7;
+      arr.push({
+        num: d,
+        dow: DOW[dow],
+        isWeekend: dow === 0 || dow === 6,
+        isToday: isCurrentMonth && d === today.getDate(),
+      });
     }
-    return days;
-  }, [startDateOffset]);
+    return arr;
+  }, [daysInMonth, firstDow, isCurrentMonth]);
 
-  const todayStr = useMemo(() => {
-    const now = new Date();
-    return formatDateKey(now);
-  }, []);
+  /* ---------- "today" summary (independent of the month being viewed) ---------- */
 
-  const handlePrev = () => {
-    setStartDateOffset(prev => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() - 7);
-      return d;
+  const pickupsToday = bookings.filter(
+    b => b.startDate?.split('T')[0] === todayISO && b.status === 'CONFIRMED'
+  ).length;
+  const returnsToday = bookings.filter(
+    b => b.endDate?.split('T')[0] === todayISO && b.status === 'CONFIRMED'
+  ).length;
+  const waitingConfirmation = bookings.filter(
+    b => b.status === 'WAITING_CONFIRMATION'
+  ).length;
+
+  /* ---------- clip a booking's range to the visible month ---------- */
+
+  const clampToMonth = (b: RawBooking): { startDay: number; endDay: number } | null => {
+    const monthStart = new Date(year, monthIndex, 1);
+    const monthEnd = new Date(year, monthIndex, daysInMonth);
+    const start = parseISODate(b.startDate);
+    const end = parseISODate(b.endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+    if (end < start) return null;
+    if (end < monthStart || start > monthEnd) return null;
+    const clippedStart = start < monthStart ? monthStart : start;
+    const clippedEnd = end > monthEnd ? monthEnd : end;
+    return { startDay: clippedStart.getDate(), endDay: clippedEnd.getDate() };
+  };
+
+  const carsRendered = useMemo(() => {
+    return cars.map(car => {
+      const carBookings = bookings
+        .filter(b => Number(b.carId) === Number(car.id))
+        .map(b => ({ booking: b, range: clampToMonth(b) }))
+        .filter((x): x is { booking: RawBooking; range: { startDay: number; endDay: number } } => x.range !== null)
+        .map(({ booking, range }) => {
+          const meta = bookingStatusMeta(booking.status);
+          const left = (range.startDay - 1) * DAY_WIDTH + 2;
+          const width = (range.endDay - range.startDay + 1) * DAY_WIDTH - 4;
+          return { booking, meta, left, width };
+        });
+      return { car, bookings: carBookings };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     });
-  };
+  }, [cars, bookings, year, monthIndex, daysInMonth]);
 
-  const handleNext = () => {
-    setStartDateOffset(prev => {
-      const d = new Date(prev);
-      d.setDate(d.getDate() + 7);
-      return d;
-    });
-  };
+  const selectedBooking = bookings.find(b => b.id === selectedId) ?? null;
+  const selectedCar = selectedBooking
+    ? cars.find(c => Number(c.id) === Number(selectedBooking.carId)) ?? null
+    : null;
 
-  const handleToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const d = new Date(today);
-    d.setDate(d.getDate() - 2);
-    setStartDateOffset(d);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case 'CONFIRMED':
-        return 'bg-blue-600 text-white border-blue-700';
-      case 'WAITING_PAYMENT':
-      case 'PENDING':
-        return 'bg-amber-500 text-white border-amber-600';
-      case 'WAITING_CONFIRMATION':
-        return 'bg-orange-500 text-white border-orange-600';
-      case 'COMPLETED':
-        return 'bg-emerald-600 text-white border-emerald-700';
-      case 'CANCELLED':
-        return 'bg-rose-500 text-white border-rose-600';
-      default:
-        return 'bg-gray-500 text-white border-gray-600';
+  const runAction = async (fn: () => Promise<unknown>) => {
+    setActionBusy(true);
+    try {
+      await fn();
+      if (!isMounted.current) return;
+      await load();
+      if (isMounted.current) {
+        setSelectedId(null);
+      }
+    } catch (err) {
+      if (!isMounted.current) return;
+      console.error('Booking action failed:', err);
+      setError('Aksi gagal dijalankan. Coba lagi.');
+    } finally {
+      if (isMounted.current) {
+        setActionBusy(false);
+      }
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case 'CONFIRMED':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Dikonfirmasi</span>;
-      case 'WAITING_PAYMENT':
-      case 'PENDING':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">Menunggu Pembayaran</span>;
-      case 'WAITING_CONFIRMATION':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">Menunggu Verifikasi</span>;
-      case 'COMPLETED':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">Selesai</span>;
-      case 'CANCELLED':
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">Dibatalkan</span>;
-      default:
-        return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{status}</span>;
-    }
-  };
+  /* ================= RENDER ================= */
+
+  if (loading) {
+    return <div className="text-gray-500 text-sm py-12 text-center">Memuat jadwal...</div>;
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header & Controls */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <CalendarIcon className="w-6 h-6 text-[#023EBA]" />
-              Jadwal Armada
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Kalender visual penyewaan mobil untuk memantau armada yang sedang dan akan disewa.
-            </p>
-          </div>
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-gray-900">Jadwal Armada</h2>
+      </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handlePrev}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-600"
-              title="7 hari sebelumnya"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleToday}
-              className="px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
-            >
-              Hari Ini
-            </button>
-            <button
-              onClick={handleNext}
-              className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-600"
-              title="7 hari berikutnya"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
+          {error}
+        </div>
+      )}
+
+      {/* Today summary strip */}
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-xl shadow-md p-5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-[#023EBA]/10 text-[#023EBA] flex items-center justify-center flex-shrink-0">
+            <ArrowUpRight className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-2xl text-gray-900 leading-tight">{pickupsToday}</p>
+            <p className="text-xs text-gray-500">Diambil Hari Ini</p>
           </div>
         </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-gray-100 text-xs text-gray-600">
-          <span className="font-semibold text-gray-700">Keterangan:</span>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-blue-600 inline-block" />
-            <span>Dikonfirmasi (Aktif)</span>
+        <div className="bg-white rounded-xl shadow-md p-5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+            <ArrowDownLeft className="w-5 h-5" />
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-amber-500 inline-block" />
-            <span>Menunggu Bayar</span>
+          <div>
+            <p className="text-2xl text-gray-900 leading-tight">{returnsToday}</p>
+            <p className="text-xs text-gray-500">Dikembalikan Hari Ini</p>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-emerald-600 inline-block" />
-            <span>Selesai</span>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+            <Clock className="w-5 h-5" />
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-500 inline-block" />
-            <span>Dibatalkan</span>
+          <div>
+            <p className="text-2xl text-gray-900 leading-tight">{waitingConfirmation}</p>
+            <p className="text-xs text-gray-500">Menunggu Konfirmasi</p>
           </div>
         </div>
       </div>
 
-      {/* Main Calendar View */}
-      {loading ? (
-        <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-500">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-200 border-t-[#023EBA] mb-3" />
-          <p>Memuat jadwal armada...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-white rounded-xl shadow-md p-8 text-center text-red-600">
-          <p className="font-medium">{error}</p>
-          <button
-            onClick={loadData}
-            className="mt-3 px-4 py-2 bg-[#023EBA] text-white text-sm rounded-lg hover:bg-blue-700"
-          >
-            Coba Lagi
-          </button>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
-          <div className="overflow-x-auto">
-            <div className="min-w-[900px]">
-              {/* Date Columns Header */}
-              <div className="grid grid-cols-[220px_repeat(14,1fr)] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-600">
-                <div className="p-3 border-r border-gray-200 flex items-center gap-2">
-                  <Car className="w-4 h-4 text-gray-400" />
-                  <span>Armada Mobil</span>
-                </div>
-                {calendarDays.map((day, idx) => {
-                  const key = formatDateKey(day);
-                  const isToday = key === todayStr;
-                  const dayName = day.toLocaleDateString('id-ID', { weekday: 'short' });
-                  const dateNum = day.getDate();
-                  const monthName = day.toLocaleDateString('id-ID', { month: 'short' });
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`p-2 text-center border-r border-gray-200 last:border-r-0 ${
-                        isToday ? 'bg-blue-50/80 font-bold text-[#023EBA]' : ''
-                      }`}
-                    >
-                      <div className="uppercase tracking-wider text-[10px] text-gray-400">
-                        {dayName}
-                      </div>
-                      <div className={`text-sm mt-0.5 ${isToday ? 'text-[#023EBA]' : 'text-gray-800'}`}>
-                        {dateNum}
-                      </div>
-                      <div className="text-[10px] text-gray-400 font-normal">
-                        {monthName}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Rows per Car */}
-              {cars.map((car) => {
-                const carBookings = bookings.filter((b) => b.carId === car.id);
-
-                return (
-                  <div
-                    key={car.id}
-                    className="grid grid-cols-[220px_repeat(14,1fr)] border-b border-gray-100 hover:bg-gray-50/40 transition-colors relative min-h-[64px]"
-                  >
-                    {/* Car Info Column */}
-                    <div className="p-3 border-r border-gray-200 flex flex-col justify-center bg-white z-10">
-                      <div className="font-medium text-sm text-gray-900 truncate" title={car.namaMobil}>
-                        {car.namaMobil}
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                        <span className="truncate">{car.jenisMobil}</span>
-                        <span>•</span>
-                        <span className="text-gray-600 font-medium whitespace-nowrap">
-                          Rp {(car.hargaPerHari / 1000).toFixed(0)}k/hr
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Timeline Day Slots */}
-                    <div className="col-span-14 grid grid-cols-14 relative h-full">
-                      {calendarDays.map((day, idx) => {
-                        const key = formatDateKey(day);
-                        const isToday = key === todayStr;
-                        return (
-                          <div
-                            key={idx}
-                            className={`border-r border-gray-100 last:border-r-0 h-full ${
-                              isToday ? 'bg-blue-50/20' : ''
-                            }`}
-                          />
-                        );
-                      })}
-
-                      {/* Overlaid Booking Bars */}
-                      {carBookings.map((b) => {
-                        if (!b.startDate || !b.endDate) return null;
-                        const bStart = parseLocalDate(b.startDate);
-                        const bEnd = parseLocalDate(b.endDate);
-
-                        const calStart = calendarDays[0];
-                        const calEnd = calendarDays[calendarDays.length - 1];
-
-                        // Skip if outside visible 14-day range
-                        if (bEnd.getTime() < calStart.getTime() || bStart.getTime() > calEnd.getTime()) {
-                          return null;
-                        }
-
-                        // Calculate grid start & span
-                        const msPerDay = 1000 * 60 * 60 * 24;
-                        const startDiffDays = Math.round((bStart.getTime() - calStart.getTime()) / msPerDay);
-                        const endDiffDays = Math.round((bEnd.getTime() - calStart.getTime()) / msPerDay);
-
-                        const startIndex = Math.max(0, startDiffDays);
-                        const endIndex = Math.min(daysToShow - 1, endDiffDays);
-                        const spanDays = Math.max(1, endIndex - startIndex + 1);
-
-                        // Percent position
-                        const leftPct = (startIndex / daysToShow) * 100;
-                        const widthPct = (spanDays / daysToShow) * 100;
-
-                        const renterDisplayName = b.userName || `User #${b.userId}`;
-
-                        return (
-                          <div
-                            key={b.id}
-                            onClick={() => setSelectedBooking(b)}
-                            className={`absolute top-2 bottom-2 rounded-md px-2 py-1 flex items-center cursor-pointer shadow-sm hover:shadow-md hover:brightness-105 transition-all text-xs border ${getStatusColor(
-                              b.status
-                            )}`}
-                            style={{
-                              left: `${leftPct}%`,
-                              width: `${Math.max(widthPct, 2)}%`,
-                              zIndex: 5,
-                            }}
-                            title={renterDisplayName}
-                          >
-                            <User className="w-3.5 h-3.5 mr-1 shrink-0" />
-                            <span className="truncate font-semibold">{renterDisplayName}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {cars.length === 0 && (
-                <div className="p-8 text-center text-gray-500">
-                  Tidak ada armada mobil terdaftar.
-                </div>
-              )}
+      {/* Calendar card */}
+      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        {/* Toolbar */}
+        <div className="flex items-center justify-between flex-wrap gap-3 px-6 py-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMonthOffset(o => o - 1)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="text-sm font-medium text-gray-900 min-w-[140px] text-center">
+              {MONTHS_ID[monthIndex]} {year}
             </div>
+            <button
+              onClick={() => setMonthOffset(o => o + 1)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setMonthOffset(0)}
+              className="ml-1 px-3 py-1.5 rounded-lg border border-[#023EBA] text-[#023EBA] text-sm hover:bg-[#023EBA]/5"
+            >
+              Hari Ini
+            </button>
+          </div>
+          <div className="flex items-center gap-4 flex-wrap">
+            {BOOKING_STATUS_ORDER.map(key => (
+              <div key={key} className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className={`w-2.5 h-2.5 rounded-sm border ${BOOKING_STATUS_META[key].bg} ${BOOKING_STATUS_META[key].border}`} />
+                <span className="text-xs text-gray-500">{BOOKING_STATUS_META[key].label}</span>
+              </div>
+            ))}
           </div>
         </div>
-      )}
 
-      {/* Booking Detail Modal */}
-      {selectedBooking && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-150">
-            <div className="bg-[#023EBA] px-6 py-4 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5" />
-                <h3 className="text-lg font-bold">Detail Jadwal Booking</h3>
+        {/* Grid */}
+        <div className="overflow-x-auto">
+          <div style={{ minWidth: 'max-content' }}>
+            {/* Day header row */}
+            <div className="flex border-b border-gray-100">
+              <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0" />
+              {days.map(d => (
+                <div
+                  key={d.num}
+                  style={{ width: DAY_WIDTH }}
+                  className={`flex-shrink-0 text-center py-2 border-r border-gray-50 ${
+                    d.isToday ? 'bg-indigo-50' : d.isWeekend ? 'bg-gray-50' : 'bg-white'
+                  }`}
+                >
+                  <div className={`text-sm font-semibold ${d.isToday ? 'text-[#023EBA]' : 'text-gray-700'}`}>
+                    {d.num}
+                  </div>
+                  <div className="text-[9px] uppercase text-gray-400">{d.dow}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Car rows */}
+            {cars.length === 0 && (
+              <div className="py-10 text-center text-sm text-gray-400">Belum ada data mobil.</div>
+            )}
+            {carsRendered.map(({ car, bookings: carBookings }) => (
+              <div key={car.id} className="flex border-b border-gray-100">
+                <div style={{ width: LABEL_WIDTH }} className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5">
+                  <div className="w-10 h-10 rounded-lg bg-[#023EBA]/10 text-[#023EBA] flex items-center justify-center flex-shrink-0">
+                    <CarIcon className="w-[18px] h-[18px]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">{car.namaMobil}</div>
+                    <div className="text-xs text-gray-500 truncate">{car.jenisMobil} • {car.kapasitas} Kursi</div>
+                  </div>
+                </div>
+                <div
+                  style={{ width: daysInMonth * DAY_WIDTH, height: 64 }}
+                  className="relative flex-shrink-0"
+                >
+                  {days.map((d, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        bottom: 0,
+                        left: idx * DAY_WIDTH,
+                        width: DAY_WIDTH,
+                        borderRight: '1px solid #F9FAFB',
+                        background: d.isToday ? '#F0F5FF' : undefined,
+                      }}
+                    />
+                  ))}
+                  {carBookings.length === 0 && (
+                    <div className="absolute inset-0 flex items-center pl-4">
+                      <span className="text-xs text-gray-400 italic">Tidak ada booking</span>
+                    </div>
+                  )}
+                  {carBookings.map(({ booking, meta, left, width }) => (
+                    <button
+                      key={booking.id}
+                      onClick={() => setSelectedId(booking.id)}
+                      title={`Booking #${booking.id} • ${booking.userName || `User #${booking.userId}`}`}
+                      style={{ position: 'absolute', top: 10, bottom: 10, left, width }}
+                      className={`rounded-lg border-[1.5px] px-2.5 flex items-center text-xs font-semibold overflow-hidden whitespace-nowrap text-ellipsis hover:shadow-md hover:-translate-y-px transition-all ${meta.bg} ${meta.border} ${meta.text} ${
+                        booking.status === 'CANCELLED' ? 'opacity-60 line-through' : ''
+                      }`}
+                    >
+                      {booking.userName || `User #${booking.userId}`}
+                    </button>
+                  ))}
+                </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Detail panel */}
+      {selectedBooking && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/35 z-40"
+            onClick={() => setSelectedId(null)}
+          />
+          <div className="fixed top-0 right-0 h-full w-full max-w-[380px] bg-white shadow-2xl z-50 p-6 flex flex-col gap-4 overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-gray-900 font-semibold">Detail Booking</h3>
               <button
-                onClick={() => setSelectedBooking(null)}
-                className="text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+                onClick={() => setSelectedId(null)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-500"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-sm text-gray-700">
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-500">ID Booking</span>
-                <span className="font-mono font-semibold text-gray-900">#{selectedBooking.id}</span>
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                {selectedBooking.carName || (selectedCar ? selectedCar.namaMobil : `Mobil #${selectedBooking.carId}`)}
               </div>
+              <span
+                className={`inline-flex items-center whitespace-nowrap mt-2 px-2.5 py-1 rounded-md text-xs font-semibold border ${bookingStatusMeta(selectedBooking.status).bg} ${bookingStatusMeta(selectedBooking.status).border} ${bookingStatusMeta(selectedBooking.status).text}`}
+              >
+                {bookingStatusMeta(selectedBooking.status).label}
+              </span>
+            </div>
 
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
+            <div className="border-t border-gray-100" />
+
+            <div className="flex flex-col gap-3 text-sm">
+              <div className="flex justify-between">
                 <span className="text-gray-500">Penyewa</span>
-                <span className="font-semibold text-gray-900">
+                <span className="text-gray-900 font-medium">
                   {selectedBooking.userName || `User #${selectedBooking.userId}`}
                 </span>
               </div>
-
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-500">Mobil</span>
-                <span className="font-semibold text-gray-900">
-                  {selectedBooking.carName ||
-                    cars.find((c) => c.id === selectedBooking.carId)?.namaMobil ||
-                    `Mobil #${selectedBooking.carId}`}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Tanggal</span>
+                <span className="text-gray-900 font-medium text-right">
+                  {formatDateRangeID(selectedBooking.startDate, selectedBooking.endDate)}
                 </span>
               </div>
-
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-500">Tanggal Sewa</span>
-                <span className="font-medium text-gray-900">
-                  {selectedBooking.startDate} s/d {selectedBooking.endDate}
+              <div className="flex justify-between pt-2 border-t border-gray-100">
+                <span className="text-gray-500">Total</span>
+                <span className="text-[#023EBA] font-semibold">
+                  Rp {(selectedBooking.totalPrice || 0).toLocaleString('id-ID')}
                 </span>
               </div>
-
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-500">Status</span>
-                <div>{getStatusBadge(selectedBooking.status)}</div>
-              </div>
-
-              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-gray-500">Total Harga</span>
-                <span className="font-bold text-gray-900 text-base text-[#023EBA]">
-                  Rp {selectedBooking.totalPrice ? selectedBooking.totalPrice.toLocaleString('id-ID') : '0'}
-                </span>
-              </div>
-
-              {selectedBooking.paymentToken && (
-                <div className="flex justify-between items-center py-2">
-                  <span className="text-gray-500">Token Pembayaran</span>
-                  <span className="font-mono text-xs text-gray-600 truncate max-w-[200px]" title={selectedBooking.paymentToken}>
-                    {selectedBooking.paymentToken}
-                  </span>
+              {selectedBooking.paymentProof && (
+                <div className="flex flex-col gap-1.5 pt-2 border-t border-gray-100">
+                  <span className="text-gray-500 text-xs font-medium">Bukti Pembayaran</span>
+                  <a
+                    href={`http://localhost:8081/uploads/${selectedBooking.paymentProof}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block rounded-lg overflow-hidden border border-gray-200 hover:border-[#023EBA] transition-colors"
+                  >
+                    <img
+                      src={`http://localhost:8081/uploads/${selectedBooking.paymentProof}`}
+                      alt="Bukti Pembayaran"
+                      className="w-full max-h-48 object-cover"
+                    />
+                  </a>
                 </div>
               )}
             </div>
 
-            <div className="bg-gray-50 px-6 py-4 flex justify-end">
-              <button
-                onClick={() => setSelectedBooking(null)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-medium rounded-lg transition-colors"
-              >
-                Tutup
-              </button>
+            <div className="mt-auto flex gap-2">
+              {(selectedBooking.status === 'WAITING_PAYMENT' || selectedBooking.status === 'WAITING_CONFIRMATION') && (
+                <>
+                  <button
+                    disabled={actionBusy}
+                    onClick={() => runAction(() => approveBooking(String(selectedBooking.id)))}
+                    className="flex-1 py-2 rounded-lg bg-green-600 text-white text-sm font-medium disabled:opacity-50 hover:bg-green-700 transition-colors"
+                  >
+                    Konfirmasi
+                  </button>
+                  <button
+                    disabled={actionBusy}
+                    onClick={() => runAction(() => cancelBooking(String(selectedBooking.id)))}
+                    className="flex-1 py-2 rounded-lg border border-red-500 text-red-600 text-sm font-medium disabled:opacity-50 hover:bg-red-50 transition-colors"
+                  >
+                    Batalkan
+                  </button>
+                </>
+              )}
+              {selectedBooking.status === 'CONFIRMED' && (
+                <>
+                  <button
+                    disabled={actionBusy}
+                    onClick={() => runAction(() => markBookingAsCompleted(String(selectedBooking.id)))}
+                    className="flex-1 py-2 rounded-lg bg-[#023EBA] text-white text-sm font-medium disabled:opacity-50 hover:bg-blue-800 transition-colors"
+                  >
+                    Tandai Selesai
+                  </button>
+                  <button
+                    disabled={actionBusy}
+                    onClick={() => runAction(() => cancelBooking(String(selectedBooking.id)))}
+                    className="flex-1 py-2 rounded-lg border border-red-500 text-red-600 text-sm font-medium disabled:opacity-50 hover:bg-red-50 transition-colors"
+                  >
+                    Batalkan
+                  </button>
+                </>
+              )}
+              {(selectedBooking.status === 'COMPLETED' || selectedBooking.status === 'CANCELLED' || selectedBooking.status === 'REFUNDED') && (
+                <button
+                  onClick={() => setSelectedId(null)}
+                  className="flex-1 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors"
+                >
+                  Tutup
+                </button>
+              )}
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );

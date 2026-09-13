@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
-import { Car, Lock, Mail, User, ArrowLeft } from 'lucide-react';
+import { Lock, Mail, User, ArrowLeft } from 'lucide-react';
+import Logo from './Logo';
 
 interface LoginProps {
   onBack?: () => void;
@@ -32,12 +33,12 @@ export default function Login({ onBack }: LoginProps) {
 
     try {
       if (isLogin) {
-        const success = await login(email, password);
-        if (!success) {
-          setError('Email atau password salah');
+        const result = await login(email, password);
+        if (!result.success) {
+          setError(result.error || 'Email atau password salah');
         }
       } else {
-        const success = await register(name, email, password);
+        const success = await register(name.trim(), email.trim().toLowerCase(), password.trim());
         if (success) {
           setMode('login');
           resetForm();
@@ -71,12 +72,9 @@ export default function Login({ onBack }: LoginProps) {
 
           {/* Header */}
           <div className="bg-gradient-to-r from-[#023EBA] to-gray-700 p-8 text-white text-center">
-            <div className="flex justify-center mb-4">
-              <div className="bg-white/20 p-4 rounded-full">
-                <Car className="w-12 h-12" />
-              </div>
+            <div className="flex justify-center mb-3">
+              <Logo tone="reversed" size={40} />
             </div>
-            <h1 className="text-3xl mb-2">Velon</h1>
             <p className="text-blue-100">Rental Mobil Terpercaya</p>
           </div>
 
@@ -166,6 +164,39 @@ export default function Login({ onBack }: LoginProps) {
               >
                 {isLogin ? 'Belum punya akun? Daftar' : 'Sudah punya akun? Masuk'}
               </button>
+            </div>
+
+            {/* Quick Testing Accounts */}
+            <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-500">
+              <p className="font-semibold text-gray-700 mb-2">Akun Pengujian (Testing):</p>
+              <div className="flex justify-between items-center py-1.5 px-2 rounded-lg hover:bg-gray-50">
+                <span>👨‍💼 <strong>Admin:</strong> admin@velon.com / admin123</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('admin@velon.com');
+                    setPassword('admin123');
+                    setError('');
+                  }}
+                  className="px-2 py-1 rounded bg-[#023EBA]/10 text-[#023EBA] hover:bg-[#023EBA]/20 font-medium transition-colors"
+                >
+                  Gunakan
+                </button>
+              </div>
+              <div className="flex justify-between items-center py-1.5 px-2 rounded-lg hover:bg-gray-50">
+                <span>👤 <strong>User:</strong> user@velon.com / user123</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('user@velon.com');
+                    setPassword('user123');
+                    setError('');
+                  }}
+                  className="px-2 py-1 rounded bg-[#023EBA]/10 text-[#023EBA] hover:bg-[#023EBA]/20 font-medium transition-colors"
+                >
+                  Gunakan
+                </button>
+              </div>
             </div>
 
           </div>

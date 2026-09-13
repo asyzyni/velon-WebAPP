@@ -5,6 +5,7 @@ import BookingHistory from './BookingHistory';
 import PaymentModal from './PaymentModal';
 import HomePage from './HomePage';
 import { Car, History, LogOut, User, Home } from 'lucide-react';
+import Logo from './Logo';
 
 type Page = 'home' | 'catalog' | 'history';
 
@@ -34,8 +35,7 @@ export default function UserDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Car className="w-8 h-8" />
-              <h1 className="text-2xl">Velon</h1>
+              <Logo tone="reversed" size={26} />
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-sm">

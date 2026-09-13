@@ -1,0 +1,235 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Car as CarIcon, CheckCircle, Calendar, ClipboardList, TrendingUp, TrendingDown } from 'lucide-react';
+import { useAuth } from './AuthContext';
+import { getAllCars, type Car } from '../api/carApi';
+import { getAllBookings } from '../api/adminBookingApi';
+import { parseISODate, formatDateID } from '../lib/date';
+import { bookingStatusMeta } from '../lib/bookingStatus';
+
+interface RawBooking {
+  id: number;
+  carId: number;
+  userId: number;
+  userName?: string;
+  carName?: string;
+  startDate: string;
+  endDate: string;
+  status: string;
+  totalPrice: number;
+}
+
+function initials(name?: string) {
+  if (!name || typeof name !== 'string') return 'A';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'A';
+  return parts.slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || 'A';
+}
+
+export default function AdminOverview() {
+  const { user } = useAuth();
+  const [cars, setCars] = useState<Car[]>([]);
+  const [bookings, setBookings] = useState<RawBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [carsData, bookingsData] = await Promise.all([getAllCars(), getAllBookings()]);
+        if (!isMounted) return;
+        setCars(Array.isArray(carsData) ? carsData : []);
+        setBookings(Array.isArray(bookingsData) ? bookingsData : []);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('Failed to load dashboard overview:', err);
+        setError('Gagal memuat data dashboard.');
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const today = new Date();
+
+  const carsById = useMemo(() => {
+    const map = new Map<number, Car>();
+    cars.forEach(c => map.set(c.id, c));
+    return map;
+  }, [cars]);
+
+  const rentedCarIds = useMemo(() => {
+    const ids = new Set<number>();
+    bookings.forEach(b => {
+      if (b.status !== 'CONFIRMED') return;
+      const start = parseISODate(b.startDate);
+      const end = parseISODate(b.endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) return;
+      const now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      if (now >= start && now <= end) ids.add(Number(b.carId));
+    });
+    return ids;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookings]);
+
+  const totalMobil = cars.length;
+  const sedangDisewa = rentedCarIds.size;
+  const mobilTersedia = cars.filter(
+    c => (!c.status || c.status.toUpperCase() === 'AVAILABLE') && !rentedCarIds.has(Number(c.id))
+  ).length;
+  const totalBooking = bookings.length;
+
+  const stats = [
+    { label: 'Total Mobil', value: totalMobil, icon: CarIcon, color: 'bg-blue-500' },
+    { label: 'Mobil Tersedia', value: mobilTersedia, icon: CheckCircle, color: 'bg-green-500' },
+    { label: 'Sedang Disewa', value: sedangDisewa, icon: Calendar, color: 'bg-yellow-500' },
+    { label: 'Total Booking', value: totalBooking, icon: ClipboardList, color: 'bg-purple-500' },
+  ];
+
+  /* ---------- revenue this month vs last month (real, from booking data) ---------- */
+
+  const revenueByMonth = (yearArg: number, monthIndex: number) =>
+    bookings
+      .filter(b => (b.status === 'CONFIRMED' || b.status === 'COMPLETED'))
+      .filter(b => {
+        const d = parseISODate(b.startDate);
+        if (isNaN(d.getTime())) return false;
+        return d.getFullYear() === yearArg && d.getMonth() === monthIndex;
+      })
+      .reduce((sum, b) => sum + (Number(b.totalPrice) || 0), 0);
+
+  const thisMonthRevenue = revenueByMonth(today.getFullYear(), today.getMonth());
+  const lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+  const lastMonthRevenue = revenueByMonth(lastMonthDate.getFullYear(), lastMonthDate.getMonth());
+  const revenueDeltaPct =
+    lastMonthRevenue > 0 ? Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100) : null;
+
+  const recentBookings = useMemo(() => {
+    return [...bookings]
+      .filter(b => !isNaN(parseISODate(b.startDate).getTime()))
+      .sort((a, b) => parseISODate(b.startDate).getTime() - parseISODate(a.startDate).getTime())
+      .slice(0, 8);
+  }, [bookings]);
+
+  if (loading) {
+    return <div className="text-gray-500 text-sm py-12 text-center">Memuat dashboard...</div>;
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-gray-900">Overview</h2>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
+          {error}
+        </div>
+      )}
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Main column */}
+        <div className="lg:col-span-2 flex flex-col gap-6 min-w-0">
+          <div className="grid sm:grid-cols-2 gap-4">
+            {stats.map((stat, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-md p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-500 mb-1 text-sm">{stat.label}</p>
+                    <p className="text-3xl text-gray-900">{stat.value}</p>
+                  </div>
+                  <div className={`${stat.color} p-3 rounded-lg`}>
+                    <stat.icon className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-gray-900">Booking Terbaru</h3>
+            </div>
+            {recentBookings.length === 0 ? (
+              <p className="text-sm text-gray-400 py-6 text-center">Belum ada booking.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[560px] text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500 border-b border-gray-100">
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">No</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">Nama Pelanggan</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">Mobil</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">Tanggal</th>
+                      <th className="py-2 pr-4 font-normal whitespace-nowrap">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentBookings.map((b, idx) => {
+                      const car = carsById.get(Number(b.carId));
+                      const meta = bookingStatusMeta(b.status);
+                      return (
+                        <tr key={b.id} className="border-b border-gray-50 last:border-0">
+                          <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">{idx + 1}</td>
+                          <td className="py-3 pr-4 text-gray-900 font-medium whitespace-nowrap">
+                            {b.userName || `User #${b.userId}`}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-700 whitespace-nowrap">
+                            {b.carName || car?.namaMobil || `Mobil #${b.carId}`}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">{formatDateID(b.startDate)}</td>
+                          <td className="py-3 pr-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center whitespace-nowrap px-2.5 py-1 rounded-md text-xs font-medium border ${meta.bg} ${meta.border} ${meta.text}`}>
+                              {meta.label}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Side column */}
+        <div className="flex flex-col gap-6">
+          <div className="bg-white rounded-xl shadow-md p-6 flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-full bg-[#023EBA] text-white flex items-center justify-center text-lg font-semibold mb-3">
+              {initials(user?.name)}
+            </div>
+            <p className="text-gray-900 font-medium">{user?.name || 'Admin'}</p>
+            <p className="text-sm text-gray-500">{user?.email || '-'}</p>
+            <span className="mt-2 inline-flex items-center whitespace-nowrap px-2.5 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 uppercase">
+              {user?.role || 'admin'}
+            </span>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-md p-6">
+            <p className="text-gray-500 text-sm mb-1">Pendapatan Bulan Ini</p>
+            <p className="text-2xl text-gray-900 font-semibold mb-1">
+              Rp {(thisMonthRevenue || 0).toLocaleString('id-ID')}
+            </p>
+            {revenueDeltaPct !== null ? (
+              <div className={`flex items-center gap-1 text-xs ${revenueDeltaPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {revenueDeltaPct >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />}
+                <span>{revenueDeltaPct >= 0 ? '+' : ''}{revenueDeltaPct}% dari bulan lalu</span>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400">Belum ada data bulan lalu untuk dibandingkan</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

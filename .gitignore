@@ -42,3 +42,8 @@ uploads/*
 !uploads/.gitkeep
 Back-End/backend/uploads/*
 !Back-End/backend/uploads/.gitkeep
+
+# ===============================
+# Credentials / Testing Docs
+# ===============================
+TEST_ACCOUNTS.md
