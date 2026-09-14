@@ -2,8 +2,6 @@
 
 > Platform rental mobil full-stack yang menyederhanakan proses reservasi kendaraan bagi pelanggan dan mengoptimalkan manajemen armada secara real-time bagi penyedia rental.
 
-![Velon Car Rental Preview](docs/screenshots/hero-preview.png)
-*(Tambahkan file screenshot/demo GIF aplikasi pada folder `docs/screenshots/`)*
 
 ---
 
